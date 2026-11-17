@@ -10,6 +10,7 @@ import {
   courseMaterialsTable,
 } from '@workspace/db';
 import { sql } from 'drizzle-orm';
+import { uploadsEnabled } from './health';
 import { Router, type IRouter, type Request, type Response } from 'express';
 
 import { canAccessCourse, getCourse, isCourseTeacher, getAssignment } from '../lib/authz';
@@ -91,6 +92,12 @@ router.post(
   '/storage/uploads/request-url',
   requireAuth,
   async (req: Request, res: Response) => {
+    if (!uploadsEnabled()) {
+      res.status(503).json({
+        error: "File uploads are switched off on this site. Paste a link to your file instead (Google Drive, OneDrive).",
+      });
+      return;
+    }
     const parsed = RequestUploadUrlBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'Missing or invalid required fields' });

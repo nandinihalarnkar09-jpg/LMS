@@ -36,8 +36,8 @@ import {
   appInvitesTable,
 } from "@workspace/db";
 
-if (process.env.NODE_ENV === "production") {
-  console.error("Refusing to seed demo data with NODE_ENV=production.");
+if (process.env.NODE_ENV === "production" && process.env.PUBLIC_DEMO !== "true") {
+  console.error("Refusing to seed demo data with NODE_ENV=production (set PUBLIC_DEMO=true only for a demo site with fictional data).");
   process.exit(1);
 }
 
@@ -151,7 +151,7 @@ async function main(): Promise<void> {
 
   const [cohort] = await db
     .insert(cohortsTable)
-    .values({ teacherId: "demo_faculty_asha", name: "PGDM 2025–27 · Section A", type: "class", description: "First-year PGDM, Section A" })
+    .values({ teacherId: "demo_faculty_asha", name: "PGDM 2025–27 · Section A", type: "year", description: "First-year PGDM, Section A" })
     .returning();
   await db.insert(cohortMembersTable).values(STUDENTS.map((s) => ({ cohortId: cohort.id, studentId: s.id })));
 

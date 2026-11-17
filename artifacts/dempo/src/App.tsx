@@ -7,6 +7,11 @@ import { AuthProvider } from '@/lib/auth';
 import { AppRouter } from '@/router';
 import { Analytics } from '@vercel/analytics/react';
 import { ConsentBanner } from '@/components/consent-banner';
+import { DemoBanner } from '@/components/demo-banner';
+
+// Vercel Web Analytics only when switched on for the project; otherwise its
+// script 404s on every page (and it's one less third party for DPDP).
+const ANALYTICS = import.meta.env.VITE_VERCEL_ANALYTICS === 'true';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,11 +33,12 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
         <TooltipProvider>
+          <DemoBanner />
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <AppRouter />
           </WouterRouter>
           <Toaster />
-          <Analytics />
+          {ANALYTICS && <Analytics />}
           <ConsentBanner />
         </TooltipProvider>
         </AuthProvider>

@@ -20,9 +20,17 @@ export const DEV_AUTH_ENABLED = process.env.AUTH_MODE === "dev";
 export const DEV_USER_PREFIX = "demo_";
 const COOKIE = "lms_dev_user";
 
-if (DEV_AUTH_ENABLED && process.env.NODE_ENV === "production") {
+/**
+ * A public demo site (fictional data only, banner on every page) may run demo
+ * sign-in in production, but only when it says so explicitly with
+ * PUBLIC_DEMO=true. A real deployment that accidentally carries AUTH_MODE=dev
+ * still refuses to start.
+ */
+export const PUBLIC_DEMO = process.env.PUBLIC_DEMO === "true";
+
+if (DEV_AUTH_ENABLED && process.env.NODE_ENV === "production" && !PUBLIC_DEMO) {
   throw new Error(
-    "AUTH_MODE=dev is a local-development convenience and must never run with NODE_ENV=production. Unset AUTH_MODE.",
+    "AUTH_MODE=dev is a local-development convenience and must never run with NODE_ENV=production. Unset AUTH_MODE (or, for a public demo with fictional data only, set PUBLIC_DEMO=true).",
   );
 }
 
@@ -85,7 +93,12 @@ export function devAuthRouter(): IRouter {
       });
       return;
     }
-    res.cookie(COOKIE, userId, { httpOnly: true, sameSite: "lax", path: "/" });
+    res.cookie(COOKIE, userId, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+    });
     res.json({ userId });
   });
 

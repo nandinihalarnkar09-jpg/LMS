@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { useAppConfig } from "@/lib/app-config";
+import { UploadsOffNotice } from "@/components/uploads-off";
 import {
   useUpdateAssignment,
   useListCourseStudents,
@@ -44,6 +46,7 @@ export function EditAssignmentDialog({
   const [audience, setAudience] = useState<"all" | "selected">("all");
   const [targetStudentIds, setTargetStudentIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadsEnabled } = useAppConfig();
 
   // Re-seed form state from the assignment each time the dialog opens.
   useEffect(() => {
@@ -173,6 +176,7 @@ export function EditAssignmentDialog({
                 ))}
               </ul>
             )}
+            {uploadsEnabled ? (
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                 {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Paperclip className="w-4 h-4 mr-2" />}
@@ -180,6 +184,9 @@ export function EditAssignmentDialog({
               </Button>
               <span className="text-xs text-muted-foreground">Any file type. Students can download these.</span>
             </div>
+            ) : (
+              <UploadsOffNotice />
+            )}
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFilesSelected} />
           </div>
 

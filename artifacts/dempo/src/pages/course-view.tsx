@@ -1,4 +1,6 @@
 import { useState, useRef } from "react";
+import { useAppConfig } from "@/lib/app-config";
+import { UploadsOffNotice } from "@/components/uploads-off";
 import { Link, useLocation } from "wouter";
 import { 
   useGetMe, useGetCourse, useListAssignments, useListCourseStudents,
@@ -570,6 +572,7 @@ function CreateAssignmentDialog({ courseId }: { courseId: number }) {
   const [targetGroupIds, setTargetGroupIds] = useState<number[]>([]);
   const [leaderOnlySubmit, setLeaderOnlySubmit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadsEnabled } = useAppConfig();
 
   const { data: roster } = useListCourseStudents(courseId, { query: { enabled: open && !!courseId, queryKey: getListCourseStudentsQueryKey(courseId) } });
   const { data: cohorts } = useListCohorts(undefined, { query: { enabled: open, queryKey: getListCohortsQueryKey() } });
@@ -714,6 +717,7 @@ function CreateAssignmentDialog({ courseId }: { courseId: number }) {
                 ))}
               </ul>
             )}
+            {uploadsEnabled ? (
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                 {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Paperclip className="w-4 h-4 mr-2" />}
@@ -721,6 +725,9 @@ function CreateAssignmentDialog({ courseId }: { courseId: number }) {
               </Button>
               <span className="text-xs text-muted-foreground">Any file type. Students can download these.</span>
             </div>
+            ) : (
+              <UploadsOffNotice />
+            )}
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFilesSelected} />
           </div>
 

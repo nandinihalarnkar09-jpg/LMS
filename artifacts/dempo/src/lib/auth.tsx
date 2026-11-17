@@ -165,9 +165,9 @@ function DevSignIn() {
 
   return (
     <div className="w-full rounded-lg border bg-card p-5 shadow-sm">
-      <p className="text-sm font-medium text-foreground">Local demo sign-in</p>
+      <p className="text-sm font-medium text-foreground">Choose a sample account</p>
       <p className="mt-1 text-sm text-muted-foreground">
-        Development mode: choose a seeded account. Production uses your college email sign-in.
+        This is a demo with fictional people and data. Pick a student, faculty member, dean or coordinator to see their view.
       </p>
       <div className="mt-4 space-y-2" role="list">
         {isLoading && <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" aria-label="Loading accounts" />}

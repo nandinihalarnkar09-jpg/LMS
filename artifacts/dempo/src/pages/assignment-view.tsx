@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback } from "react";
+import { useAppConfig } from "@/lib/app-config";
+import { UploadsOffNotice } from "@/components/uploads-off";
 import { useLocation } from "wouter";
 import { 
   useGetAssignment, useGetMe, useCreateSubmission, useListAssignmentSubmissions, useRequestUploadUrl, useRunSimilarityCheck,
@@ -297,6 +299,7 @@ function StudentSubmissionForm({ assignment, viewerId }: { assignment: any; view
   const [textResponse, setTextResponse] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const { uploadsEnabled } = useAppConfig();
   const [aiDeclaration, setAiDeclaration] = useState<"none" | "assisted" | "generated" | "">("");
   const [aiDeclarationNote, setAiDeclarationNote] = useState("");
   
@@ -315,7 +318,7 @@ function StudentSubmissionForm({ assignment, viewerId }: { assignment: any; view
   // Light validation before we ask the student to confirm — no upload yet.
   const validate = (): string | null => {
     if (activeTab === 'text') { if (!textResponse.trim()) return "Your response is empty."; }
-    else if (activeTab === 'link') { if (!linkUrl.trim()) return "The link URL is empty."; }
+    else if (activeTab === 'link' || activeTab === 'video') { if (!linkUrl.trim()) return activeTab === 'video' ? "Paste the link to your video first." : "The link URL is empty."; }
     else if (activeTab === 'file') { if (!fileToUpload) return "Please attach a file first."; }
     else return "Please complete the required fields for this submission type.";
     if (!aiDeclaration) return "Please declare whether you used AI for this work.";
@@ -337,20 +340,22 @@ function StudentSubmissionForm({ assignment, viewerId }: { assignment: any; view
       if (activeTab === 'text') {
         if (!textResponse.trim()) throw new Error("Response is empty");
         submissionData.textResponse = textResponse;
-      } else if (activeTab === 'link') {
-        if (!linkUrl.trim()) throw new Error("URL is empty");
-        submissionData.linkUrl = linkUrl;
+      } else if (activeTab === 'link' || activeTab === 'video') {
+        if (!linkUrl.trim()) throw new Error("Paste a link first.");
+        submissionData.linkUrl = linkUrl.trim();
       } else if (activeTab === 'file' && fileToUpload) {
         // Upload logic
         const urlRes = await requestUrl.mutateAsync({
           data: { name: fileToUpload.name, size: fileToUpload.size, contentType: fileToUpload.type }
         });
         
-        await fetch(urlRes.uploadURL, {
+        const put = await fetch(urlRes.uploadURL, {
           method: 'PUT',
           headers: { 'Content-Type': fileToUpload.type },
           body: fileToUpload
         });
+        // Don't hand in a submission that points at a file that never arrived.
+        if (!put.ok) throw new Error("Your file didn't finish uploading. Check your connection and try again — nothing was handed in yet.");
         
         submissionData.files = [{ path: urlRes.objectPath, name: fileToUpload.name }];
       } else {
@@ -364,7 +369,7 @@ function StudentSubmissionForm({ assignment, viewerId }: { assignment: any; view
       if (aiDeclarationNote.trim()) submissionData.aiDeclarationNote = aiDeclarationNote.trim();
 
       const res = await submitMutation.mutateAsync({ assignmentId: assignment.id, data: submissionData });
-      toast({ title: "Submission successful", description: "Your work is now being processed by AI for a draft score." });
+      toast({ title: "Handed in", description: "Your teacher can see your work now." });
       
       // Redirect to the newly created submission view
       setTimeout(() => setLocation(`/submission/${res.id}`), 500);
@@ -435,7 +440,7 @@ function StudentSubmissionForm({ assignment, viewerId }: { assignment: any; view
               {assignment.allowedTypes.includes('text') && <TabsTrigger value="text" className="h-full rounded-none px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary shrink-0"><FileText className="w-4 h-4 mr-2" /> Write Response</TabsTrigger>}
               {assignment.allowedTypes.includes('file') && <TabsTrigger value="file" className="h-full rounded-none px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary shrink-0"><UploadCloud className="w-4 h-4 mr-2" /> Upload File</TabsTrigger>}
               {assignment.allowedTypes.includes('link') && <TabsTrigger value="link" className="h-full rounded-none px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary shrink-0"><LinkIcon className="w-4 h-4 mr-2" /> URL Link</TabsTrigger>}
-              {assignment.allowedTypes.includes('video') && <TabsTrigger value="video" className="h-full rounded-none px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary shrink-0"><Video className="w-4 h-4 mr-2" /> Record Video</TabsTrigger>}
+              {assignment.allowedTypes.includes('video') && <TabsTrigger value="video" className="h-full rounded-none px-6 data-[state=active]:border-b-2 data-[state=active]:border-primary shrink-0"><Video className="w-4 h-4 mr-2" /> Video link</TabsTrigger>}
             </TabsList>
             
             <div className="p-6">
@@ -449,10 +454,12 @@ function StudentSubmissionForm({ assignment, viewerId }: { assignment: any; view
               </TabsContent>
               
               <TabsContent value="file" className="mt-0 outline-none">
+                {uploadsEnabled ? (
                 <div className="border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center bg-muted/10 hover:bg-muted/30 transition-colors">
-                  <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
+                  <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" aria-hidden />
                   <Input 
                     type="file" 
+                    aria-label="Choose a file to submit"
                     className="max-w-xs mb-2" 
                     onChange={e => setFileToUpload(e.target.files?.[0] || null)}
                   />
@@ -460,6 +467,9 @@ function StudentSubmissionForm({ assignment, viewerId }: { assignment: any; view
                     Select a document, PDF, or image to upload.
                   </p>
                 </div>
+                ) : (
+                  <UploadsOffNotice className="rounded-lg border border-dashed p-6" />
+                )}
               </TabsContent>
 
               <TabsContent value="link" className="mt-0 outline-none">
@@ -479,9 +489,18 @@ function StudentSubmissionForm({ assignment, viewerId }: { assignment: any; view
               </TabsContent>
               
               <TabsContent value="video" className="mt-0 outline-none">
-                <div className="border border-dashed rounded-xl p-12 text-center">
-                  <Video className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
-                  <p className="text-muted-foreground mb-4">Video recording is not available in this demo environment.</p>
+                <div className="space-y-3 max-w-lg">
+                  <Label htmlFor="video-link">Link to your video</Label>
+                  <Input
+                    id="video-link"
+                    type="url"
+                    placeholder="https://youtu.be/… or a Google Drive link"
+                    value={linkUrl}
+                    onChange={e => setLinkUrl(e.target.value)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Upload the video to YouTube (as Unlisted) or Google Drive (shared with "anyone with the link"), then paste the link here. Links work on slow connections and don't count against the college's storage.
+                  </p>
                 </div>
               </TabsContent>
             </div>
