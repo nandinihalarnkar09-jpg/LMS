@@ -4,6 +4,8 @@ A learning platform for **Srinivassa Sinai Dempo College (Autonomous), Goa**, co
 
 Faculty post materials and a session-by-session course plan, set assignments and **timed quizzes**, take attendance, and grade with rubrics and a weighted gradebook. Students submit work (text, files, links, audio, video), take quizzes that save as they type, and see their marks and feedback. Admins onboard whole batches from a **CSV roster**. Deans and course coordinators get oversight and analytics.
 
+**Live demo:** https://lms-eta-beige.vercel.app (fictional data; press **Sign in** and pick any sample account). It is hosted on Vercel with a Neon Postgres database in Singapore, and redeploys automatically from `main`.
+
 > **New here?** Read this file, then [`docs/takeover/`](docs/takeover/README.md). It covers what the product is, which documents to trust, what broke and why, how we compare with Google Classroom, and the plan.
 
 ---
@@ -63,7 +65,8 @@ What you get: every feature working on fictional data, a "Demo site" label on ev
 
 ## Where it deploys
 - **Production target: Vercel**, one project. The SPA is served from the CDN and the API runs as one serverless function in Singapore (`sin1`), next to the Neon database (Vercel's Neon integration offers no Mumbai region). See `vercel.json`, `api/index.mjs` and [`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md).
-- **Database: Supabase (Mumbai), probably.** Commit `5b913b9` and [`MIGRATE-SUPABASE.md`](MIGRATE-SUPABASE.md) point that way. *TODO, unverified: the live region and storage provider aren't recorded in the repo.*
+- **Our live demo** (https://lms-eta-beige.vercel.app): Vercel project `lms` plus the Neon database `lms-db` (Singapore), connected through Vercel's Neon integration. Every deploy runs `scripts/deploy-db.mjs`, which does a data-safe schema sync and loads the demo college if it's empty.
+- **The original deployment's database: Supabase (Mumbai), probably.** Commit `5b913b9` and [`MIGRATE-SUPABASE.md`](MIGRATE-SUPABASE.md) point that way. *TODO, unverified: that region and storage provider aren't recorded in the repo.*
 - `render.yaml` and `.replit` are older deploy targets, kept for reference. `ARCHITECTURE.md`'s DigitalOcean plan was never carried out.
 - **Do not touch the original live deployment.** Deploy your own copy.
 
