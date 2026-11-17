@@ -24,7 +24,6 @@ import type {
   AddCohortMemberInput,
   AdminUserUpdate,
   Assignment,
-  GroupRemovalImpact,
   AssignmentInput,
   AssignmentUpdate,
   CalendarData,
@@ -51,7 +50,9 @@ import type {
   FeedbackCreate,
   FeedbackList,
   FeedbackNote,
+  GetGroupRemovalImpactParams,
   GradeInput,
+  GroupRemovalImpact,
   GroupTask,
   GroupTaskInput,
   GroupTaskUpdate,
@@ -79,6 +80,8 @@ import type {
   QuizAttemptInput,
   QuizGradeInput,
   QuizInput,
+  QuizSession,
+  QuizSessionSaveInput,
   RemoveTeacherResult,
   SetCoordinatorCoursesInput,
   SetCoordinatorCoursesResult,
@@ -2877,6 +2880,149 @@ export const useCreateQuizAttempt = <TError = ErrorType<ErrorEnvelope>,
         TContext
       > => {
       return useMutation(getCreateQuizAttemptMutationOptions(options));
+    }
+
+export const getStartQuizSessionUrl = (quizId: number,) => {
+
+
+
+
+  return `/api/quizzes/${quizId}/session`
+}
+
+/**
+ * @summary Start or resume the student's attempt. Starting a timed quiz starts the server-side clock; resuming returns the saved answers.
+ */
+export const startQuizSession = async (quizId: number, options?: RequestInit): Promise<QuizSession> => {
+
+  return customFetch<QuizSession>(getStartQuizSessionUrl(quizId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartQuizSessionMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startQuizSession>>, TError,{quizId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startQuizSession>>, TError,{quizId: number}, TContext> => {
+
+const mutationKey = ['startQuizSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startQuizSession>>, {quizId: number}> = (props) => {
+          const {quizId} = props ?? {};
+
+          return  startQuizSession(quizId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartQuizSessionMutationResult = NonNullable<Awaited<ReturnType<typeof startQuizSession>>>
+
+    export type StartQuizSessionMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Start or resume the student's attempt. Starting a timed quiz starts the server-side clock; resuming returns the saved answers.
+ */
+export const useStartQuizSession = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startQuizSession>>, TError,{quizId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startQuizSession>>,
+        TError,
+        {quizId: number},
+        TContext
+      > => {
+      return useMutation(getStartQuizSessionMutationOptions(options));
+    }
+
+export const getSaveQuizSessionUrl = (quizId: number,) => {
+
+
+
+
+  return `/api/quizzes/${quizId}/session`
+}
+
+/**
+ * @summary Autosave the student's current answers. Rejected with 409 once time is up (the last save stands).
+ */
+export const saveQuizSession = async (quizId: number,
+    quizSessionSaveInput: QuizSessionSaveInput, options?: RequestInit): Promise<QuizSession> => {
+
+  return customFetch<QuizSession>(getSaveQuizSessionUrl(quizId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(quizSessionSaveInput)
+  }
+);}
+
+
+
+
+
+export const getSaveQuizSessionMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveQuizSession>>, TError,{quizId: number;data: BodyType<QuizSessionSaveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveQuizSession>>, TError,{quizId: number;data: BodyType<QuizSessionSaveInput>}, TContext> => {
+
+const mutationKey = ['saveQuizSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveQuizSession>>, {quizId: number;data: BodyType<QuizSessionSaveInput>}> = (props) => {
+          const {quizId,data} = props ?? {};
+
+          return  saveQuizSession(quizId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveQuizSessionMutationResult = NonNullable<Awaited<ReturnType<typeof saveQuizSession>>>
+    export type SaveQuizSessionMutationBody = BodyType<QuizSessionSaveInput>
+    export type SaveQuizSessionMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Autosave the student's current answers. Rejected with 409 once time is up (the last save stands).
+ */
+export const useSaveQuizSession = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveQuizSession>>, TError,{quizId: number;data: BodyType<QuizSessionSaveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveQuizSession>>,
+        TError,
+        {quizId: number;data: BodyType<QuizSessionSaveInput>},
+        TContext
+      > => {
+      return useMutation(getSaveQuizSessionMutationOptions(options));
     }
 
 export const getGradeQuizAttemptUrl = (attemptId: number,) => {
@@ -6757,6 +6903,101 @@ export const useCreateCourseGroup = <TError = ErrorType<unknown>,
       return useMutation(getCreateCourseGroupMutationOptions(options));
     }
 
+export const getGetGroupRemovalImpactUrl = (groupId: number,
+    params?: GetGroupRemovalImpactParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["removedIds[]"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/groups/${groupId}/removal-impact?${stringifiedParams}` : `/api/groups/${groupId}/removal-impact`
+}
+
+/**
+ * @summary Get removal impact for a group – tasks and submissions affected when members are removed (teacher only)
+ */
+export const getGroupRemovalImpact = async (groupId: number,
+    params?: GetGroupRemovalImpactParams, options?: RequestInit): Promise<GroupRemovalImpact> => {
+
+  return customFetch<GroupRemovalImpact>(getGetGroupRemovalImpactUrl(groupId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGroupRemovalImpactQueryKey = (groupId: number,
+    params?: GetGroupRemovalImpactParams,) => {
+    return [
+    `/api/groups/${groupId}/removal-impact`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetGroupRemovalImpactQueryOptions = <TData = Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError = ErrorType<unknown>>(groupId: number,
+    params?: GetGroupRemovalImpactParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGroupRemovalImpactQueryKey(groupId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupRemovalImpact>>> = ({ signal }) => getGroupRemovalImpact(groupId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: groupId !== null && groupId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGroupRemovalImpactQueryResult = NonNullable<Awaited<ReturnType<typeof getGroupRemovalImpact>>>
+export type GetGroupRemovalImpactQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get removal impact for a group – tasks and submissions affected when members are removed (teacher only)
+ */
+
+export function useGetGroupRemovalImpact<TData = Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError = ErrorType<unknown>>(
+ groupId: number,
+    params?: GetGroupRemovalImpactParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGroupRemovalImpactQueryOptions(groupId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getUpdateCourseGroupUrl = (groupId: number,) => {
 
 
@@ -7198,57 +7439,4 @@ export const useDeleteGroupTask = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteGroupTaskMutationOptions(options));
     }
-
-export const getGetGroupRemovalImpactUrl = (groupId: number, removedIds: string[]) => {
-  const params = new URLSearchParams();
-  removedIds.forEach((id) => params.append('removedIds[]', id));
-  return `/api/groups/${groupId}/removal-impact?${params.toString()}`;
-};
-
-/**
- * @summary Get removal impact for a group – tasks and submissions affected when members are removed (teacher only)
- */
-export const getGroupRemovalImpact = async (groupId: number, removedIds: string[], options?: RequestInit): Promise<GroupRemovalImpact> => {
-  return customFetch<GroupRemovalImpact>(getGetGroupRemovalImpactUrl(groupId, removedIds), {
-    ...options,
-    method: 'GET',
-  });
-};
-
-export const getGetGroupRemovalImpactQueryKey = (groupId: number, removedIds: string[]) =>
-  [`/api/groups/${groupId}/removal-impact`, ...removedIds] as const;
-
-export const getGetGroupRemovalImpactQueryOptions = <TData = Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError = ErrorType<unknown>>(
-  groupId: number,
-  removedIds: string[],
-  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-  const queryKey = queryOptions?.queryKey ?? getGetGroupRemovalImpactQueryKey(groupId, removedIds);
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupRemovalImpact>>> = ({ signal }) =>
-    getGroupRemovalImpact(groupId, removedIds, { signal, ...requestOptions });
-  return {
-    queryKey,
-    queryFn,
-    enabled: groupId !== null && groupId !== undefined && removedIds.length > 0,
-    ...queryOptions,
-  } as UseQueryOptions<Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError, TData> & { queryKey: QueryKey };
-};
-
-export type GetGroupRemovalImpactQueryResult = NonNullable<Awaited<ReturnType<typeof getGroupRemovalImpact>>>;
-export type GetGroupRemovalImpactQueryError = ErrorType<unknown>;
-
-/**
- * @summary Get removal impact for a group – tasks and submissions affected when members are removed (teacher only)
- */
-export function useGetGroupRemovalImpact<TData = Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError = ErrorType<unknown>>(
-  groupId: number,
-  removedIds: string[],
-  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getGroupRemovalImpact>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetGroupRemovalImpactQueryOptions(groupId, removedIds, options);
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
-  query.queryKey = queryOptions.queryKey;
-  return query;
-}
 

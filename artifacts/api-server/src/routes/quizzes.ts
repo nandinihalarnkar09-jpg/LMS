@@ -5,6 +5,7 @@ import {
   quizzesTable,
   quizQuestionsTable,
   quizAttemptsTable,
+  quizAttemptSessionsTable,
   usersTable,
   type Quiz,
   type QuizQuestion,
@@ -35,12 +36,23 @@ import {
   GradeQuizAttemptParams,
   GradeQuizAttemptBody,
   GradeQuizAttemptResponse,
+  StartQuizSessionParams,
+  StartQuizSessionResponse,
+  SaveQuizSessionParams,
+  SaveQuizSessionBody,
+  SaveQuizSessionResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { getCourse, canAccessCourse, isCourseTeacher, isEnrolled } from "../lib/authz";
 import { gradeShortAnswer } from "../lib/grading";
 import { logActivity } from "../lib/activityLog";
 import { notifyCourseStudents, createNotifications } from "../lib/notifications";
+import {
+  computeDeadline,
+  isPastDeadline,
+  cleanDraftAnswers,
+  type DraftAnswer,
+} from "../lib/examSession";
 
 const router: IRouter = Router();
 
@@ -118,6 +130,133 @@ async function loadQuizWithCourse(quizId: number) {
   if (!quiz) return { quiz: undefined, course: undefined };
   const course = await getCourse(quiz.courseId);
   return { quiz, course };
+}
+
+/**
+ * Score answers (MC instantly, short answers via AI best-effort) and record
+ * the student's one attempt. Shared by normal submission and by the server
+ * auto-submitting a timed attempt whose clock ran out. Returns null if the
+ * student already has an attempt (take-once is enforced by a unique index).
+ */
+async function scoreAndRecordAttempt(
+  quiz: Quiz,
+  studentId: string,
+  input: DraftAnswer[],
+  opts: { startedAt?: Date | null; autoSubmitted?: boolean } = {},
+): Promise<QuizAttempt | null> {
+  const questions = await getQuizQuestions(quiz.id);
+  const answerByQuestion = new Map(input.map((a) => [a.questionId, a]));
+  const answers: QuizAnswer[] = await Promise.all(
+    questions.map(async (q) => {
+      const a = answerByQuestion.get(q.id);
+      if (q.type === "multiple_choice") {
+        const selected =
+          a?.selectedOption != null &&
+          a.selectedOption >= 0 &&
+          a.selectedOption < q.options.length
+            ? a.selectedOption
+            : null;
+        const autoScore =
+          selected != null && selected === q.correctOption ? q.points : 0;
+        return {
+          questionId: q.id,
+          selectedOption: selected,
+          textAnswer: null,
+          autoScore,
+          aiScore: null,
+          aiFeedback: null,
+          score: null,
+        };
+      }
+      const text = a?.textAnswer?.trim() ?? "";
+      const graded = await gradeShortAnswer(q.prompt, q.points, text);
+      return {
+        questionId: q.id,
+        selectedOption: null,
+        textAnswer: text || null,
+        autoScore: null,
+        aiScore: graded.aiScore,
+        aiFeedback: graded.aiFeedback,
+        score: null,
+      };
+    }),
+  );
+
+  const [attempt] = await db
+    .insert(quizAttemptsTable)
+    .values({
+      quizId: quiz.id,
+      studentId,
+      answers,
+      score: null,
+      maxScore: quizMaxScore(questions),
+      status: "submitted",
+      startedAt: opts.startedAt ?? null,
+      autoSubmitted: opts.autoSubmitted ?? false,
+    })
+    .onConflictDoNothing()
+    .returning();
+  // The in-progress copy is no longer needed once the attempt is recorded.
+  await db
+    .delete(quizAttemptSessionsTable)
+    .where(
+      and(
+        eq(quizAttemptSessionsTable.quizId, quiz.id),
+        eq(quizAttemptSessionsTable.studentId, studentId),
+      ),
+    );
+  return attempt ?? null;
+}
+
+/**
+ * Submit every in-progress attempt whose time is up, using the answers that
+ * were saved before the deadline. Runs lazily whenever the quiz is looked at
+ * (teacher results, publishing results, a student reopening it), so a student
+ * whose laptop died still ends up with a submitted attempt.
+ */
+async function finalizeExpiredSessions(quiz: Quiz, onlyStudentId?: string): Promise<number> {
+  const sessions = await db
+    .select()
+    .from(quizAttemptSessionsTable)
+    .where(
+      onlyStudentId
+        ? and(
+            eq(quizAttemptSessionsTable.quizId, quiz.id),
+            eq(quizAttemptSessionsTable.studentId, onlyStudentId),
+          )
+        : eq(quizAttemptSessionsTable.quizId, quiz.id),
+    );
+  let finalized = 0;
+  for (const s of sessions) {
+    if (!isPastDeadline(s.deadlineAt)) continue;
+    const attempt = await scoreAndRecordAttempt(quiz, s.studentId, s.answers, {
+      startedAt: s.startedAt,
+      autoSubmitted: true,
+    });
+    if (attempt) {
+      finalized++;
+      void logActivity({
+        user: null,
+        action: "quiz.auto_submitted",
+        message: `Time ran out on quiz "${quiz.title}"; submitted ${s.answers.length} saved answer(s) for ${s.studentId}`,
+        metadata: { quizId: quiz.id, attemptId: attempt.id, studentId: s.studentId },
+      });
+    }
+  }
+  return finalized;
+}
+
+async function getSession(quizId: number, studentId: string) {
+  const [session] = await db
+    .select()
+    .from(quizAttemptSessionsTable)
+    .where(
+      and(
+        eq(quizAttemptSessionsTable.quizId, quizId),
+        eq(quizAttemptSessionsTable.studentId, studentId),
+      ),
+    );
+  return session;
 }
 
 async function insertQuestions(quizId: number, questions: QuestionInput[]) {
@@ -224,6 +363,7 @@ router.post(
         title: parsed.data.title,
         description: parsed.data.description ?? null,
         dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+        timeLimitMinutes: parsed.data.timeLimitMinutes ?? null,
         status: "draft",
       })
       .returning();
@@ -274,6 +414,7 @@ router.get(
       return;
     }
 
+    await finalizeExpiredSessions(quiz, teacher ? undefined : req.userId!);
     const questions = await getQuizQuestions(quiz.id);
     const attempts = await db
       .select()
@@ -282,6 +423,10 @@ router.get(
     const mine = attempts.find((a) => a.studentId === req.userId!);
     const revealAnswers =
       teacher || (!!quiz.resultsPublishedAt && !!mine);
+    const session = teacher ? undefined : await getSession(quiz.id, req.userId!);
+    // Timed quiz: a student sees the questions only once their clock is
+    // running (POST /quizzes/:id/session returns them), never before.
+    const hideQuestions = !teacher && !!quiz.timeLimitMinutes && !mine;
 
     res.json(
       GetQuizResponse.parse({
@@ -289,9 +434,12 @@ router.get(
         maxScore: quizMaxScore(questions),
         questionCount: questions.length,
         attemptCount: attempts.length,
-        questions: sanitizeQuestions(questions, revealAnswers),
+        questions: hideQuestions ? [] : sanitizeQuestions(questions, revealAnswers),
         myAttempt: mine
           ? sanitizeAttempt(mine, !!quiz.resultsPublishedAt)
+          : null,
+        mySession: session
+          ? { startedAt: session.startedAt, deadlineAt: session.deadlineAt }
           : null,
       }),
     );
@@ -331,9 +479,16 @@ router.put(
       .select()
       .from(quizAttemptsTable)
       .where(eq(quizAttemptsTable.quizId, quiz.id));
-    if (attempts.length > 0) {
+    const sessions = await db
+      .select({ id: quizAttemptSessionsTable.id })
+      .from(quizAttemptSessionsTable)
+      .where(eq(quizAttemptSessionsTable.quizId, quiz.id));
+    if (attempts.length > 0 || sessions.length > 0) {
       res.status(409).json({
-        error: "Questions cannot change after students have taken the quiz",
+        error:
+          attempts.length > 0
+            ? "Questions cannot change after students have taken the quiz"
+            : "Questions cannot change while students are taking the quiz",
       });
       return;
     }
@@ -344,6 +499,7 @@ router.put(
         title: parsed.data.title,
         description: parsed.data.description ?? null,
         dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+        timeLimitMinutes: parsed.data.timeLimitMinutes ?? null,
       })
       .where(eq(quizzesTable.id, quiz.id))
       .returning();
@@ -385,6 +541,7 @@ router.delete(
       return;
     }
     await db.delete(quizAttemptsTable).where(eq(quizAttemptsTable.quizId, quiz.id));
+    await db.delete(quizAttemptSessionsTable).where(eq(quizAttemptSessionsTable.quizId, quiz.id));
     await db.delete(quizQuestionsTable).where(eq(quizQuestionsTable.quizId, quiz.id));
     await db.delete(quizzesTable).where(eq(quizzesTable.id, quiz.id));
 
@@ -463,6 +620,9 @@ router.post(
       res.status(403).json({ error: "Only the course teacher can publish results" });
       return;
     }
+
+    // Anyone whose timed attempt has run out gets their saved answers in first.
+    await finalizeExpiredSessions(quiz);
 
     // Finalize every attempt: any answer without a teacher-set score falls
     // back to its AI suggestion (short answer) or auto score (multiple choice).
@@ -543,6 +703,7 @@ router.get(
       res.status(403).json({ error: "Only the course teacher can view all attempts" });
       return;
     }
+    await finalizeExpiredSessions(quiz);
 
     const attempts = await db
       .select()
@@ -619,70 +780,42 @@ router.post(
     }
 
     const questions = await getQuizQuestions(quiz.id);
-    const byId = new Map(questions.map((q) => [q.id, q]));
-    const answerByQuestion = new Map(
-      parsed.data.answers.map((a) => [a.questionId, a]),
-    );
+    const validIds = new Set(questions.map((q) => q.id));
     for (const a of parsed.data.answers) {
-      if (!byId.has(a.questionId)) {
+      if (!validIds.has(a.questionId)) {
         res.status(400).json({ error: "Answer references an unknown question" });
         return;
       }
     }
 
-    // Score every question: MC instantly, short answers via AI (best-effort).
-    const answers: QuizAnswer[] = await Promise.all(
-      questions.map(async (q) => {
-        const a = answerByQuestion.get(q.id);
-        if (q.type === "multiple_choice") {
-          const selected =
-            a?.selectedOption != null &&
-            a.selectedOption >= 0 &&
-            a.selectedOption < q.options.length
-              ? a.selectedOption
-              : null;
-          const autoScore =
-            selected != null && selected === q.correctOption ? q.points : 0;
-          return {
-            questionId: q.id,
-            selectedOption: selected,
-            textAnswer: null,
-            autoScore,
-            aiScore: null,
-            aiFeedback: null,
-            score: null,
-          };
-        }
-        const text = a?.textAnswer?.trim() ?? "";
-        const graded = await gradeShortAnswer(q.prompt, q.points, text);
-        return {
-          questionId: q.id,
-          selectedOption: null,
-          textAnswer: text || null,
-          autoScore: null,
-          aiScore: graded.aiScore,
-          aiFeedback: graded.aiFeedback,
-          score: null,
-        };
-      }),
-    );
+    const session = await getSession(quiz.id, req.userId!);
+    if (quiz.timeLimitMinutes && !session) {
+      res.status(400).json({ error: "Start the quiz first — the timer begins when you press Start." });
+      return;
+    }
 
-    const [attempt] = await db
-      .insert(quizAttemptsTable)
-      .values({
-        quizId: quiz.id,
-        studentId: req.userId!,
-        answers,
-        score: null,
-        maxScore: quizMaxScore(questions),
-        status: "submitted",
-      })
-      .returning();
+    // Past the deadline: the answers saved in time stand, not whatever arrives
+    // late. Within the deadline (plus network grace): the submitted answers.
+    const late = !!session && isPastDeadline(session.deadlineAt);
+    const answers = late
+      ? session!.answers
+      : cleanDraftAnswers(parsed.data.answers as DraftAnswer[], validIds);
+
+    const attempt = await scoreAndRecordAttempt(quiz, req.userId!, answers, {
+      startedAt: session?.startedAt ?? null,
+      autoSubmitted: late,
+    });
+    if (!attempt) {
+      res.status(409).json({ error: "You have already taken this quiz" });
+      return;
+    }
 
     void logActivity({
       user: req.localUser!,
-      action: "quiz.attempted",
-      message: `${req.localUser!.email} took quiz "${quiz.title}"`,
+      action: late ? "quiz.auto_submitted" : "quiz.attempted",
+      message: late
+        ? `${req.localUser!.email} submitted after time ran out on quiz "${quiz.title}"; saved answers were used`
+        : `${req.localUser!.email} took quiz "${quiz.title}"`,
       metadata: { quizId: quiz.id, attemptId: attempt.id },
     });
 
@@ -691,6 +824,158 @@ router.post(
         sanitizeAttempt(attempt, !!quiz.resultsPublishedAt),
       ),
     );
+  },
+);
+
+/** Shared checks for the session endpoints: enrolled, published, still open. */
+async function loadOpenQuizForStudent(
+  quizId: number,
+  studentId: string,
+): Promise<{ quiz: Quiz; error?: undefined } | { quiz?: undefined; error: { status: number; message: string } }> {
+  const { quiz, course } = await loadQuizWithCourse(quizId);
+  if (!quiz || !course || quiz.status !== "published") {
+    return { error: { status: 404, message: "Quiz not found" } };
+  }
+  if (!(await isEnrolled(course.id, studentId))) {
+    return { error: { status: 403, message: "Not enrolled in this course" } };
+  }
+  if (quiz.resultsPublishedAt) {
+    return { error: { status: 409, message: "Results have been published; this quiz is closed" } };
+  }
+  return { quiz };
+}
+
+function sessionView(
+  quiz: Quiz,
+  session: typeof quizAttemptSessionsTable.$inferSelect,
+  questions: QuizQuestion[],
+) {
+  return {
+    quizId: quiz.id,
+    startedAt: session.startedAt,
+    deadlineAt: session.deadlineAt,
+    serverNow: new Date(),
+    answers: session.answers,
+    lastSavedAt: session.lastSavedAt,
+    saveCount: session.saveCount,
+    questions: sanitizeQuestions(questions, false),
+  };
+}
+
+// Start or resume an attempt. Idempotent: calling it again (page reload,
+// reconnect, another device) returns the same clock and the saved answers.
+router.post(
+  "/quizzes/:quizId/session",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const params = StartQuizSessionParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const loaded = await loadOpenQuizForStudent(params.data.quizId, req.userId!);
+    if (loaded.error) {
+      res.status(loaded.error.status).json({ error: loaded.error.message });
+      return;
+    }
+    const quiz = loaded.quiz;
+
+    await finalizeExpiredSessions(quiz, req.userId!);
+    const [attempt] = await db
+      .select({ id: quizAttemptsTable.id, autoSubmitted: quizAttemptsTable.autoSubmitted })
+      .from(quizAttemptsTable)
+      .where(
+        and(
+          eq(quizAttemptsTable.quizId, quiz.id),
+          eq(quizAttemptsTable.studentId, req.userId!),
+        ),
+      );
+    if (attempt) {
+      res.status(409).json({
+        error: attempt.autoSubmitted
+          ? "Time ran out, so your saved answers were submitted for you."
+          : "You have already submitted this quiz.",
+      });
+      return;
+    }
+
+    let session = await getSession(quiz.id, req.userId!);
+    if (!session) {
+      const now = new Date();
+      if (quiz.timeLimitMinutes && quiz.dueDate && quiz.dueDate.getTime() <= now.getTime()) {
+        res.status(409).json({ error: "This quiz closed at its due date." });
+        return;
+      }
+      await db
+        .insert(quizAttemptSessionsTable)
+        .values({
+          quizId: quiz.id,
+          studentId: req.userId!,
+          startedAt: now,
+          deadlineAt: computeDeadline(now, quiz.timeLimitMinutes, quiz.dueDate),
+        })
+        .onConflictDoNothing();
+      session = await getSession(quiz.id, req.userId!);
+      if (quiz.timeLimitMinutes) {
+        void logActivity({
+          user: req.localUser!,
+          action: "quiz.started",
+          message: `${req.localUser!.email} started timed quiz "${quiz.title}"`,
+          metadata: { quizId: quiz.id, deadlineAt: session?.deadlineAt?.toISOString() ?? null },
+        });
+      }
+    }
+
+    const questions = await getQuizQuestions(quiz.id);
+    res.json(StartQuizSessionResponse.parse(sessionView(quiz, session!, questions)));
+  },
+);
+
+// Autosave. Called every few seconds while the student works, and again as
+// soon as the browser reconnects after a drop.
+router.put(
+  "/quizzes/:quizId/session",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const params = SaveQuizSessionParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const parsed = SaveQuizSessionBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const loaded = await loadOpenQuizForStudent(params.data.quizId, req.userId!);
+    if (loaded.error) {
+      res.status(loaded.error.status).json({ error: loaded.error.message });
+      return;
+    }
+    const quiz = loaded.quiz;
+    const session = await getSession(quiz.id, req.userId!);
+    if (!session) {
+      // No session: either never started, or already submitted.
+      res.status(409).json({ error: "This attempt is no longer open." });
+      return;
+    }
+    if (isPastDeadline(session.deadlineAt)) {
+      await finalizeExpiredSessions(quiz, req.userId!);
+      res.status(409).json({ error: "Time is up. Your last saved answers have been submitted." });
+      return;
+    }
+
+    const questions = await getQuizQuestions(quiz.id);
+    const answers = cleanDraftAnswers(
+      parsed.data.answers as DraftAnswer[],
+      new Set(questions.map((q) => q.id)),
+    );
+    const [saved] = await db
+      .update(quizAttemptSessionsTable)
+      .set({ answers, lastSavedAt: new Date(), saveCount: session.saveCount + 1 })
+      .where(eq(quizAttemptSessionsTable.id, session.id))
+      .returning();
+    res.json(SaveQuizSessionResponse.parse(sessionView(quiz, saved, questions)));
   },
 );
 

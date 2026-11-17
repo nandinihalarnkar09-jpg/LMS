@@ -1080,6 +1080,7 @@ export const ListQuizzesResponseItem = zod.object({
   "description": zod.string().nullish(),
   "dueDate": zod.coerce.date().nullish(),
   "status": zod.enum(['draft', 'published']),
+  "timeLimitMinutes": zod.number().nullish().describe('Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.'),
   "resultsPublishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "maxScore": zod.number().optional(),
@@ -1112,9 +1113,15 @@ export const ListQuizzesResponseItem = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
-}),zod.null()]).optional()
+}),zod.null()]).optional(),
+  "mySession": zod.union([zod.object({
+  "startedAt": zod.coerce.date(),
+  "deadlineAt": zod.coerce.date().nullish()
+}),zod.null()]).optional().describe('The student\'s in-progress timed attempt, if they have started one.')
 })
 export const ListQuizzesResponse = zod.array(ListQuizzesResponseItem)
 
@@ -1127,6 +1134,8 @@ export const CreateQuizParams = zod.object({
 })
 
 
+export const createQuizBodyTimeLimitMinutesMax = 600;
+
 
 export const createQuizBodyQuestionsItemCorrectOptionMin = 0;
 
@@ -1138,6 +1147,7 @@ export const CreateQuizBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().optional(),
   "dueDate": zod.coerce.date().optional(),
+  "timeLimitMinutes": zod.number().min(1).max(createQuizBodyTimeLimitMinutesMax).nullish(),
   "questions": zod.array(zod.object({
   "type": zod.enum(['multiple_choice', 'short_answer']),
   "prompt": zod.string().min(1),
@@ -1154,6 +1164,7 @@ export const CreateQuizResponse = zod.object({
   "description": zod.string().nullish(),
   "dueDate": zod.coerce.date().nullish(),
   "status": zod.enum(['draft', 'published']),
+  "timeLimitMinutes": zod.number().nullish().describe('Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.'),
   "resultsPublishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "maxScore": zod.number().optional(),
@@ -1186,9 +1197,15 @@ export const CreateQuizResponse = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
-}),zod.null()]).optional()
+}),zod.null()]).optional(),
+  "mySession": zod.union([zod.object({
+  "startedAt": zod.coerce.date(),
+  "deadlineAt": zod.coerce.date().nullish()
+}),zod.null()]).optional().describe('The student\'s in-progress timed attempt, if they have started one.')
 })
 
 
@@ -1206,6 +1223,7 @@ export const GetQuizResponse = zod.object({
   "description": zod.string().nullish(),
   "dueDate": zod.coerce.date().nullish(),
   "status": zod.enum(['draft', 'published']),
+  "timeLimitMinutes": zod.number().nullish().describe('Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.'),
   "resultsPublishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "maxScore": zod.number().optional(),
@@ -1238,9 +1256,15 @@ export const GetQuizResponse = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
-}),zod.null()]).optional()
+}),zod.null()]).optional(),
+  "mySession": zod.union([zod.object({
+  "startedAt": zod.coerce.date(),
+  "deadlineAt": zod.coerce.date().nullish()
+}),zod.null()]).optional().describe('The student\'s in-progress timed attempt, if they have started one.')
 })
 
 
@@ -1251,6 +1275,8 @@ export const UpdateQuizParams = zod.object({
   "quizId": zod.coerce.number()
 })
 
+
+export const updateQuizBodyTimeLimitMinutesMax = 600;
 
 
 export const updateQuizBodyQuestionsItemCorrectOptionMin = 0;
@@ -1263,6 +1289,7 @@ export const UpdateQuizBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().optional(),
   "dueDate": zod.coerce.date().optional(),
+  "timeLimitMinutes": zod.number().min(1).max(updateQuizBodyTimeLimitMinutesMax).nullish(),
   "questions": zod.array(zod.object({
   "type": zod.enum(['multiple_choice', 'short_answer']),
   "prompt": zod.string().min(1),
@@ -1279,6 +1306,7 @@ export const UpdateQuizResponse = zod.object({
   "description": zod.string().nullish(),
   "dueDate": zod.coerce.date().nullish(),
   "status": zod.enum(['draft', 'published']),
+  "timeLimitMinutes": zod.number().nullish().describe('Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.'),
   "resultsPublishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "maxScore": zod.number().optional(),
@@ -1311,9 +1339,15 @@ export const UpdateQuizResponse = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
-}),zod.null()]).optional()
+}),zod.null()]).optional(),
+  "mySession": zod.union([zod.object({
+  "startedAt": zod.coerce.date(),
+  "deadlineAt": zod.coerce.date().nullish()
+}),zod.null()]).optional().describe('The student\'s in-progress timed attempt, if they have started one.')
 })
 
 
@@ -1341,6 +1375,7 @@ export const PublishQuizResponse = zod.object({
   "description": zod.string().nullish(),
   "dueDate": zod.coerce.date().nullish(),
   "status": zod.enum(['draft', 'published']),
+  "timeLimitMinutes": zod.number().nullish().describe('Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.'),
   "resultsPublishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "maxScore": zod.number().optional(),
@@ -1373,9 +1408,15 @@ export const PublishQuizResponse = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
-}),zod.null()]).optional()
+}),zod.null()]).optional(),
+  "mySession": zod.union([zod.object({
+  "startedAt": zod.coerce.date(),
+  "deadlineAt": zod.coerce.date().nullish()
+}),zod.null()]).optional().describe('The student\'s in-progress timed attempt, if they have started one.')
 })
 
 
@@ -1393,6 +1434,7 @@ export const PublishQuizResultsResponse = zod.object({
   "description": zod.string().nullish(),
   "dueDate": zod.coerce.date().nullish(),
   "status": zod.enum(['draft', 'published']),
+  "timeLimitMinutes": zod.number().nullish().describe('Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.'),
   "resultsPublishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "maxScore": zod.number().optional(),
@@ -1425,9 +1467,15 @@ export const PublishQuizResultsResponse = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
-}),zod.null()]).optional()
+}),zod.null()]).optional(),
+  "mySession": zod.union([zod.object({
+  "startedAt": zod.coerce.date(),
+  "deadlineAt": zod.coerce.date().nullish()
+}),zod.null()]).optional().describe('The student\'s in-progress timed attempt, if they have started one.')
 })
 
 
@@ -1455,6 +1503,8 @@ export const ListQuizAttemptsResponseItem = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
 })
@@ -1497,9 +1547,95 @@ export const CreateQuizAttemptResponse = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
 })
+
+
+/**
+ * @summary Start or resume the student's attempt. Starting a timed quiz starts the server-side clock; resuming returns the saved answers.
+ */
+export const StartQuizSessionParams = zod.object({
+  "quizId": zod.coerce.number()
+})
+
+export const startQuizSessionResponseAnswersItemSelectedOptionMin = 0;
+
+
+
+export const StartQuizSessionResponse = zod.object({
+  "quizId": zod.number(),
+  "startedAt": zod.coerce.date(),
+  "deadlineAt": zod.coerce.date().nullish().describe('Server-authoritative end time (start + time limit, capped at the due date). Null when untimed.'),
+  "serverNow": zod.coerce.date().describe('Server clock, so the client can correct for a wrong device clock.'),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number(),
+  "selectedOption": zod.number().min(startQuizSessionResponseAnswersItemSelectedOptionMin).optional(),
+  "textAnswer": zod.string().optional()
+})),
+  "lastSavedAt": zod.coerce.date().nullish(),
+  "saveCount": zod.number(),
+  "questions": zod.array(zod.object({
+  "id": zod.number(),
+  "quizId": zod.number(),
+  "position": zod.number(),
+  "type": zod.enum(['multiple_choice', 'short_answer']),
+  "prompt": zod.string(),
+  "options": zod.array(zod.string()),
+  "correctOption": zod.number().nullish(),
+  "points": zod.number()
+})).optional().describe('Included when starting\/resuming — for timed quizzes the questions are only revealed once the clock starts.')
+}).describe('A student\'s in-progress attempt. Answers are saved on the server as they work, so a closed tab, dead battery or dropped WiFi loses nothing.')
+
+
+/**
+ * @summary Autosave the student's current answers. Rejected with 409 once time is up (the last save stands).
+ */
+export const SaveQuizSessionParams = zod.object({
+  "quizId": zod.coerce.number()
+})
+
+export const saveQuizSessionBodyAnswersItemSelectedOptionMin = 0;
+
+
+
+export const SaveQuizSessionBody = zod.object({
+  "answers": zod.array(zod.object({
+  "questionId": zod.number(),
+  "selectedOption": zod.number().min(saveQuizSessionBodyAnswersItemSelectedOptionMin).optional(),
+  "textAnswer": zod.string().optional()
+}))
+})
+
+export const saveQuizSessionResponseAnswersItemSelectedOptionMin = 0;
+
+
+
+export const SaveQuizSessionResponse = zod.object({
+  "quizId": zod.number(),
+  "startedAt": zod.coerce.date(),
+  "deadlineAt": zod.coerce.date().nullish().describe('Server-authoritative end time (start + time limit, capped at the due date). Null when untimed.'),
+  "serverNow": zod.coerce.date().describe('Server clock, so the client can correct for a wrong device clock.'),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number(),
+  "selectedOption": zod.number().min(saveQuizSessionResponseAnswersItemSelectedOptionMin).optional(),
+  "textAnswer": zod.string().optional()
+})),
+  "lastSavedAt": zod.coerce.date().nullish(),
+  "saveCount": zod.number(),
+  "questions": zod.array(zod.object({
+  "id": zod.number(),
+  "quizId": zod.number(),
+  "position": zod.number(),
+  "type": zod.enum(['multiple_choice', 'short_answer']),
+  "prompt": zod.string(),
+  "options": zod.array(zod.string()),
+  "correctOption": zod.number().nullish(),
+  "points": zod.number()
+})).optional().describe('Included when starting\/resuming — for timed quizzes the questions are only revealed once the clock starts.')
+}).describe('A student\'s in-progress attempt. Answers are saved on the server as they work, so a closed tab, dead battery or dropped WiFi loses nothing.')
 
 
 /**
@@ -1538,6 +1674,8 @@ export const GradeQuizAttemptResponse = zod.object({
   "score": zod.number().nullish(),
   "maxScore": zod.number(),
   "status": zod.enum(['submitted', 'graded']),
+  "startedAt": zod.coerce.date().nullish(),
+  "autoSubmitted": zod.boolean().optional().describe('True when time ran out and the server submitted the student\'s last saved answers.'),
   "submittedAt": zod.coerce.date(),
   "gradedAt": zod.coerce.date().nullish()
 })
@@ -2725,6 +2863,28 @@ export const CreateCourseGroupResponse = zod.object({
 
 
 /**
+ * @summary Get removal impact for a group – tasks and submissions affected when members are removed (teacher only)
+ */
+export const GetGroupRemovalImpactParams = zod.object({
+  "groupId": zod.coerce.number()
+})
+
+export const GetGroupRemovalImpactQueryParams = zod.object({
+  "removedIds[]": zod.array(zod.coerce.string()).optional()
+})
+
+export const GetGroupRemovalImpactResponse = zod.object({
+  "openTasks": zod.array(zod.object({
+  "id": zod.number(),
+  "description": zod.string(),
+  "assigneeId": zod.string(),
+  "assigneeName": zod.string().nullish()
+})),
+  "submissionsCount": zod.number()
+})
+
+
+/**
  * @summary Update a group's name, membership, or leader (teacher only)
  */
 export const UpdateCourseGroupParams = zod.object({
@@ -2855,23 +3015,5 @@ export const DeleteGroupTaskParams = zod.object({
 })
 
 export const DeleteGroupTaskResponse = zod.void()
-
-
-/**
- * @summary Get removal impact for a group – tasks and submissions affected when members are removed (teacher only)
- */
-export const GetGroupRemovalImpactParams = zod.object({
-  "groupId": zod.coerce.number()
-})
-
-export const GetGroupRemovalImpactResponse = zod.object({
-  "openTasks": zod.array(zod.object({
-    "id": zod.number(),
-    "description": zod.string(),
-    "assigneeId": zod.string(),
-    "assigneeName": zod.string().nullish()
-  })),
-  "submissionsCount": zod.number()
-})
 
 
