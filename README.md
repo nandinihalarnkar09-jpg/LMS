@@ -42,10 +42,10 @@ Re-seed from scratch with `pnpm run db:seed --reset`.
 | Piece | Where | Notes |
 |---|---|---|
 | Web app (React 19, Vite, Tailwind v4, shadcn/ui) | `artifacts/dempo/` | Design tokens in `src/index.css`; product identity in `src/lib/brand.ts` |
-| API (Express 5) | `artifacts/api-server/` | Routes in `src/routes/`; auth in `src/middlewares/auth.ts` (Clerk) and `devAuth.ts` (local) |
+| API (Express 5) | `artifacts/api-server/` | Routes in `src/routes/`; auth in `src/middlewares/auth.ts` (Clerk) and `src/middlewares/devAuth.ts` (local) |
 | Database schema (Drizzle, Postgres) | `lib/db/src/schema/` | Source of truth for data. **No foreign keys** (known gap) |
 | API contract (OpenAPI → orval) | `lib/api-spec/openapi.yaml` → `lib/api-zod`, `lib/api-client-react` | Never hand-edit `generated/`. The admin invite and roster routes are not in the spec yet |
-| Seed and dev tooling | `scripts/` | `seed.ts`, `dev.mjs`, `check-contrast.py` |
+| Seed and dev tooling | `scripts/` | `scripts/src/seed.ts`, `scripts/dev.mjs`, `scripts/check-contrast.py` |
 | CI | `.github/workflows/ci.yml` | Typecheck, test (Postgres 16) and build, on Node 22 and 24, with a frozen lockfile |
 
 ## Where it deploys
