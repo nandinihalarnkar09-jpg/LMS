@@ -5,7 +5,7 @@
   "buildCommand": "pnpm --filter @workspace/dempo build && pnpm --filter @workspace/dempo exec sh -c 'rm -rf ../../public && cp -r dist/public ../../public' && pnpm --filter @workspace/api-server build && node scripts/deploy-db.mjs",
   "outputDirectory": "public",
   "regions": [
-    "bom1"
+    "sin1"
   ],
   "functions": {
     "api/index.mjs": {
