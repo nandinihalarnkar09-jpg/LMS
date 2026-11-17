@@ -781,6 +781,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /quizzes/{quizId}/session:
+    post:
+      operationId: startQuizSession
+      tags: [quizzes]
+      summary: Start or resume the student's attempt. Starting a timed quiz starts the server-side clock; resuming returns the saved answers.
+      parameters:
+        - $ref: "#/components/parameters/QuizId"
+      responses:
+        "200":
+          description: The in-progress session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizSession"
+        "409":
+          description: Already submitted, or closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    put:
+      operationId: saveQuizSession
+      tags: [quizzes]
+      summary: Autosave the student's current answers. Rejected with 409 once time is up (the last save stands).
+      parameters:
+        - $ref: "#/components/parameters/QuizId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuizSessionSaveInput"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizSession"
+        "409":
+          description: Time is up or already submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /quiz-attempts/{attemptId}/grade:
     patch:
       operationId: gradeQuizAttempt
@@ -1832,6 +1878,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/CourseGroup"
 
+  /groups/{groupId}/removal-impact:
+    get:
+      operationId: getGroupRemovalImpact
+      tags: [groups]
+      summary: Get removal impact for a group – tasks and submissions affected when members are removed (teacher only)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: removedIds[]
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: Removal impact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupRemovalImpact"
+
   /groups/{groupId}:
     patch:
       operationId: updateCourseGroup
@@ -2515,6 +2583,27 @@ components:
           type: ["string", "null"]
           description: Must be a member. Pass null to clear the leader.
 
+    GroupRemovalImpact:
+      type: object
+      required: [openTasks, submissionsCount]
+      properties:
+        openTasks:
+          type: array
+          items:
+            type: object
+            required: [id, description, assigneeId]
+            properties:
+              id:
+                type: integer
+              description:
+                type: string
+              assigneeId:
+                type: string
+              assigneeName:
+                type: ["string", "null"]
+        submissionsCount:
+          type: integer
+
     GroupTask:
       type: object
       required: [id, assignmentId, groupId, assigneeId, description, done, createdAt]
@@ -3136,6 +3225,9 @@ components:
         status:
           type: string
           enum: [draft, published]
+        timeLimitMinutes:
+          type: ["integer", "null"]
+          description: Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.
         resultsPublishedAt:
           type: ["string", "null"]
           format: date-time
@@ -3155,6 +3247,19 @@ components:
         myAttempt:
           oneOf:
             - $ref: "#/components/schemas/QuizAttempt"
+            - type: "null"
+        mySession:
+          description: The student's in-progress timed attempt, if they have started one.
+          oneOf:
+            - type: object
+              required: [startedAt]
+              properties:
+                startedAt:
+                  type: string
+                  format: date-time
+                deadlineAt:
+                  type: ["string", "null"]
+                  format: date-time
             - type: "null"
 
     QuizQuestionInput:
@@ -3190,6 +3295,10 @@ components:
         dueDate:
           type: string
           format: date-time
+        timeLimitMinutes:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 600
         questions:
           type: array
           minItems: 1
@@ -3238,6 +3347,12 @@ components:
         status:
           type: string
           enum: [submitted, graded]
+        startedAt:
+          type: ["string", "null"]
+          format: date-time
+        autoSubmitted:
+          type: boolean
+          description: True when time ran out and the server submitted the student's last saved answers.
         submittedAt:
           type: string
           format: date-time
@@ -3258,6 +3373,48 @@ components:
           type: string
 
     QuizAttemptInput:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizAnswerInput"
+
+    QuizSession:
+      type: object
+      description: A student's in-progress attempt. Answers are saved on the server as they work, so a closed tab, dead battery or dropped WiFi loses nothing.
+      required: [quizId, startedAt, serverNow, answers, saveCount]
+      properties:
+        quizId:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        deadlineAt:
+          type: ["string", "null"]
+          format: date-time
+          description: Server-authoritative end time (start + time limit, capped at the due date). Null when untimed.
+        serverNow:
+          type: string
+          format: date-time
+          description: Server clock, so the client can correct for a wrong device clock.
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizAnswerInput"
+        lastSavedAt:
+          type: ["string", "null"]
+          format: date-time
+        saveCount:
+          type: integer
+        questions:
+          type: array
+          description: Included when starting/resuming — for timed quizzes the questions are only revealed once the clock starts.
+          items:
+            $ref: "#/components/schemas/QuizQuestion"
+
+    QuizSessionSaveInput:
       type: object
       required: [answers]
       properties:

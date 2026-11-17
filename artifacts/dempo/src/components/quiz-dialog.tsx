@@ -44,6 +44,15 @@ const emptyQuestion = (type: QuestionDraft["type"]): QuestionDraft => ({
   points: 1,
 });
 
+/** ISO/Date → "yyyy-MM-ddTHH:mm" in the viewer's local time, for datetime-local inputs. */
+function toLocalInputValue(iso: string | Date | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function QuizFormDialog({
   courseId,
   quiz,
@@ -56,6 +65,7 @@ export function QuizFormDialog({
     title: string;
     description?: string | null;
     dueDate?: string | null;
+    timeLimitMinutes?: number | null;
     questions?: {
       type: string;
       prompt: string;
@@ -70,8 +80,12 @@ export function QuizFormDialog({
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(quiz?.title ?? "");
   const [description, setDescription] = useState(quiz?.description ?? "");
-  const [dueDate, setDueDate] = useState(
-    quiz?.dueDate ? quiz.dueDate.slice(0, 16) : "",
+  // datetime-local inputs are in the viewer's local time. Slicing the UTC ISO
+  // string (the old code) shifted the due date by the UTC offset on every edit
+  // — 5h30m earlier per save in India.
+  const [dueDate, setDueDate] = useState(toLocalInputValue(quiz?.dueDate));
+  const [timeLimit, setTimeLimit] = useState(
+    quiz?.timeLimitMinutes ? String(quiz.timeLimitMinutes) : "",
   );
   const [questions, setQuestions] = useState<QuestionDraft[]>(
     quiz?.questions?.length
@@ -118,7 +132,11 @@ export function QuizFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const problem = validate();
+    const limit = timeLimit ? Number(timeLimit) : null;
+    const problem =
+      limit != null && (!Number.isFinite(limit) || limit < 1 || limit > 600)
+        ? "Time limit must be between 1 and 600 minutes, or left empty for no limit."
+        : validate();
     if (problem) {
       toast({ title: "Check your quiz", description: problem, variant: "destructive" });
       return;
@@ -127,6 +145,7 @@ export function QuizFormDialog({
       title: title.trim(),
       description: description.trim() || undefined,
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+      timeLimitMinutes: timeLimit ? Math.round(Number(timeLimit)) : null,
       questions: questions.map((q) => ({
         type: q.type,
         prompt: q.prompt.trim(),
@@ -179,9 +198,28 @@ export function QuizFormDialog({
             <Label htmlFor="quiz-desc">Description</Label>
             <Textarea id="quiz-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
-          <div className="space-y-2 max-w-xs">
-            <Label htmlFor="quiz-due">Due Date</Label>
-            <Input id="quiz-due" type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="quiz-due">Due Date</Label>
+              <Input id="quiz-due" type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quiz-limit">Time limit (minutes)</Label>
+              <Input
+                id="quiz-limit"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={600}
+                placeholder="No limit"
+                value={timeLimit}
+                onChange={(e) => setTimeLimit(e.target.value)}
+                aria-describedby="quiz-limit-help"
+              />
+              <p id="quiz-limit-help" className="text-xs text-muted-foreground">
+                Exam mode: each student's clock starts when they press Start and is kept by the server. Answers save automatically; when time runs out, the last saved answers are submitted.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4">

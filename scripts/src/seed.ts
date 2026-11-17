@@ -197,6 +197,23 @@ async function main(): Promise<void> {
     { quizId: quiz.id, position: 3, type: "short_answer", prompt: "In one or two sentences: why might a café owner care more about the median than the mean?", options: [], correctOption: null, points: 3 },
   ]);
 
+  const [midterm] = await db
+    .insert(quizzesTable)
+    .values({
+      courseId: analytics.id,
+      title: "Midterm — Forecasting (exam mode)",
+      description: "Timed: 20 minutes from when you press Start. Answers save automatically.",
+      dueDate: at(4),
+      timeLimitMinutes: 20,
+      status: "published",
+    })
+    .returning();
+  await db.insert(quizQuestionsTable).values([
+    { quizId: midterm.id, position: 0, type: "multiple_choice", prompt: "A 4-week moving average is best at…", options: ["Predicting festival spikes", "Smoothing week-to-week noise", "Explaining causes", "Removing seasonality entirely"], correctOption: 1, points: 2 },
+    { quizId: midterm.id, position: 1, type: "multiple_choice", prompt: "Forecast error is usually measured with…", options: ["MAPE", "GDP", "NPS", "ROI"], correctOption: 0, points: 2 },
+    { quizId: midterm.id, position: 2, type: "short_answer", prompt: "The monsoon starts next week. How would you adjust a footfall forecast, and why?", options: [], correctOption: null, points: 4 },
+  ]);
+
   await db.insert(messagesTable).values([
     { courseId: analytics.id, senderId: "demo_faculty_asha", body: "Welcome to Business Analytics! Monday's session is in Room 204. Bring a laptop — we start with the café dataset.", isAnnouncement: true, createdAt: at(-8, 9) },
     { courseId: analytics.id, senderId: "demo_faculty_asha", body: "Assignment 1 grades are out. Most of you nailed the box plot; watch your axis labels in Assignment 2.", isAnnouncement: true, createdAt: at(-3, 10) },
@@ -242,12 +259,13 @@ async function main(): Promise<void> {
     { courseId: analytics.id, itemType: "assignment", itemId: a1.id, categoryId: catAssign.id },
     { courseId: analytics.id, itemType: "assignment", itemId: a2.id, categoryId: catAssign.id },
     { courseId: analytics.id, itemType: "quiz", itemId: quiz.id, categoryId: catQuiz.id },
+    { courseId: analytics.id, itemType: "quiz", itemId: midterm.id, categoryId: catQuiz.id },
   ]);
 
   console.log("Demo data created:");
   console.log(`  ${ALL_USERS.length} accounts (sign in as any of them on the local sign-in page)`);
   console.log(`  2 courses — "${analytics.title}" (code DEMOBA), "${hr.title}" (code DEMOHR)`);
-  console.log(`  3 assignments, 1 quiz, 3 sessions with attendance, announcements, a discussion thread`);
+  console.log(`  3 assignments, 2 quizzes (one timed, exam mode), 3 sessions with attendance, announcements, a discussion thread`);
   void a3;
 }
 

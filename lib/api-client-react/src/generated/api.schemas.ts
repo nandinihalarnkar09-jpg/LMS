@@ -5,18 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-
-export interface GroupRemovalImpactTask {
-  id: number;
-  description: string;
-  assigneeId: string;
-  assigneeName?: string | null;
-}
-
-export interface GroupRemovalImpact {
-  openTasks: GroupRemovalImpactTask[];
-  submissionsCount: number;
-}
 export interface HealthStatus {
   status: string;
 }
@@ -422,6 +410,19 @@ export interface CourseGroupUpdate {
      * @nullable
      */
   leaderId?: string | null;
+}
+
+export type GroupRemovalImpactOpenTasksItem = {
+  id: number;
+  description: string;
+  assigneeId: string;
+  /** @nullable */
+  assigneeName?: string | null;
+};
+
+export interface GroupRemovalImpact {
+  openTasks: GroupRemovalImpactOpenTasksItem[];
+  submissionsCount: number;
 }
 
 export interface GroupTask {
@@ -903,6 +904,15 @@ export const QuizStatus = {
   published: 'published',
 } as const;
 
+/**
+ * The student's in-progress timed attempt, if they have started one.
+ */
+export type QuizMySession = {
+  startedAt: string;
+  /** @nullable */
+  deadlineAt?: string | null;
+} | null;
+
 export interface QuizAnswer {
   questionId: number;
   /** @nullable */
@@ -938,6 +948,10 @@ export interface QuizAttempt {
   score?: number | null;
   maxScore: number;
   status: QuizAttemptStatus;
+  /** @nullable */
+  startedAt?: string | null;
+  /** True when time ran out and the server submitted the student's last saved answers. */
+  autoSubmitted?: boolean;
   submittedAt: string;
   /** @nullable */
   gradedAt?: string | null;
@@ -952,6 +966,11 @@ export interface Quiz {
   /** @nullable */
   dueDate?: string | null;
   status: QuizStatus;
+  /**
+     * Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.
+     * @nullable
+     */
+  timeLimitMinutes?: number | null;
   /** @nullable */
   resultsPublishedAt?: string | null;
   createdAt: string;
@@ -960,6 +979,8 @@ export interface Quiz {
   attemptCount?: number;
   questions?: QuizQuestion[];
   myAttempt?: QuizAttempt | null;
+  /** The student's in-progress timed attempt, if they have started one. */
+  mySession?: QuizMySession;
 }
 
 export type QuizQuestionInputType = typeof QuizQuestionInputType[keyof typeof QuizQuestionInputType];
@@ -986,6 +1007,12 @@ export interface QuizInput {
   title: string;
   description?: string;
   dueDate?: string;
+  /**
+     * @minimum 1
+     * @maximum 600
+     * @nullable
+     */
+  timeLimitMinutes?: number | null;
   /** @minItems 1 */
   questions: QuizQuestionInput[];
 }
@@ -998,6 +1025,31 @@ export interface QuizAnswerInput {
 }
 
 export interface QuizAttemptInput {
+  answers: QuizAnswerInput[];
+}
+
+/**
+ * A student's in-progress attempt. Answers are saved on the server as they work, so a closed tab, dead battery or dropped WiFi loses nothing.
+ */
+export interface QuizSession {
+  quizId: number;
+  startedAt: string;
+  /**
+     * Server-authoritative end time (start + time limit, capped at the due date). Null when untimed.
+     * @nullable
+     */
+  deadlineAt?: string | null;
+  /** Server clock, so the client can correct for a wrong device clock. */
+  serverNow: string;
+  answers: QuizAnswerInput[];
+  /** @nullable */
+  lastSavedAt?: string | null;
+  saveCount: number;
+  /** Included when starting/resuming — for timed quizzes the questions are only revealed once the clock starts. */
+  questions?: QuizQuestion[];
+}
+
+export interface QuizSessionSaveInput {
   answers: QuizAnswerInput[];
 }
 
@@ -1286,4 +1338,8 @@ export const ListCohortsType = {
   elective: 'elective',
   custom: 'custom',
 } as const;
+
+export type GetGroupRemovalImpactParams = {
+'removedIds[]'?: string[];
+};
 
