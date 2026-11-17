@@ -1,0 +1,32 @@
+email,name,roll_no,role,cohort
+arjun.shetty1@students.demo.college.test,"Arjun Shetty",25BBA001,student,PGDM 2025–27 · Section A
+neel.sawant2@students.demo.college.test,"Neel Sawant",25BBA002,student,PGDM 2025–27 · Section A
+diya.kamat3@students.demo.college.test,"Diya Kamat",25BBA003,student,PGDM 2025–27 · Section A
+shreya.kamat4@students.demo.college.test,"Shreya Kamat",25BBA004,student,PGDM 2025–27 · Section A
+tara.prabhu5@students.demo.college.test,"Tara Prabhu",25BBA005,student,PGDM 2025–27 · Section A
+diya.pai6@students.demo.college.test,"Diya Pai",25BBA006,student,PGDM 2025–27 · Section A
+vihaan.naik7@students.demo.college.test,"Vihaan Naik",25BBA007,student,PGDM 2025–27 · Section A
+ishaan.desai8@students.demo.college.test,"Ishaan Desai",25BBA008,student,PGDM 2025–27 · Section A
+riya.kamat9@students.demo.college.test,"Riya Kamat",25BBA009,student,PGDM 2025–27 · Section A
+anika.kamat10@students.demo.college.test,"Anika Kamat",25BBA010,student,PGDM 2025–27 · Section A
+shreya.desai11@students.demo.college.test,"Shreya Desai",25BBA011,student,PGDM 2025–27 · Section A
+diya.prabhu12@students.demo.college.test,"Diya Prabhu",25BBA012,student,PGDM 2025–27 · Section A
+kavya.dsouza13@students.demo.college.test,"Kavya D'Souza",25BBA013,student,PGDM 2025–27 · Section A
+yash.naik14@students.demo.college.test,"Yash Naik",25BBA014,student,PGDM 2025–27 · Section A
+yash.prabhu15@students.demo.college.test,"Yash Prabhu",25BBA015,student,PGDM 2025–27 · Section A
+neel.naik16@students.demo.college.test,"Neel Naik",25BBA016,student,PGDM 2025–27 · Section A
+anika.naik17@students.demo.college.test,"Anika Naik",25BBA017,student,PGDM 2025–27 · Section A
+shreya.shetty18@students.demo.college.test,"Shreya Shetty",25BBA018,student,PGDM 2025–27 · Section A
+meera.desai19@students.demo.college.test,"Meera Desai",25BBA019,student,PGDM 2025–27 · Section A
+rohan.pai20@students.demo.college.test,"Rohan Pai",25BBA020,student,PGDM 2025–27 · Section A
+kavya.prabhu21@students.demo.college.test,"Kavya Prabhu",25BBA021,student,PGDM 2025–27 · Section A
+meera.pai22@students.demo.college.test,"Meera Pai",25BBA022,student,PGDM 2025–27 · Section A
+sanya.kamat23@students.demo.college.test,"Sanya Kamat",25BBA023,student,PGDM 2025–27 · Section A
+yash.prabhu24@students.demo.college.test,"Yash Prabhu",25BBA024,student,PGDM 2025–27 · Section A
+vihaan.fernandes25@students.demo.college.test,"Vihaan Fernandes",25BBA025,student,PGDM 2025–27 · Section A
+arjun.shetty1@students.demo.college.test,Duplicate Of Row 2,25BBA101,student,
+not-an-email,Bad Email,25BBA102,student,
+kabir.new@students.demo.college.test,Kabir New,25BBA003,student,
+tara.x@students.demo.college.test,Tara X,25BBA104,principal,
+neel.y@students.demo.college.test,Neel Y,25BBA105,student,Section Z
+prof.sawant@demo.college.test,Prof. Sawant,,teacher,

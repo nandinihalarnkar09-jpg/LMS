@@ -8,6 +8,7 @@ export const appInvitesTable = pgTable("app_invites", {
   email: text("email").notNull().unique(), // stored lowercased
   name: text("name"),
   role: text("role").notNull().default("student"), // student | teacher
+  rollNo: text("roll_no"), // college roll / PRN number, from roster import
   cohortIds: jsonb("cohort_ids").$type<number[]>(), // optional: auto-add to these cohorts on join
   token: text("token").notNull().unique(), // for the invite link
   invitedBy: text("invited_by").notNull(), // admin user id

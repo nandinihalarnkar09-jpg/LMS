@@ -5,7 +5,8 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull(),
   name: text("name"),
   avatarUrl: text("avatar_url"),
-  role: text("role").notNull().default("unassigned"), // student | teacher | unassigned
+  role: text("role").notNull().default("unassigned"), // student | teacher | dean | course_coordinator | unassigned
+  rollNo: text("roll_no"), // college roll / PRN number (copied from the invite on first sign-in)
   bio: text("bio"),
   title: text("title"),
   linkedinUrl: text("linkedin_url"),

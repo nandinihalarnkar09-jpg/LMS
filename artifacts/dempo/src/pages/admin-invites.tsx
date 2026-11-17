@@ -8,13 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageContainer, PageHeader } from "@/components/page";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Copy, Send, Trash2, Loader2, CheckCircle2, Clock, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { RosterImport } from "@/components/roster-import";
+import { Mail, Copy, Send, Trash2, Loader2, CheckCircle2, Clock, Check, Search } from "lucide-react";
 
 interface Cohort { id: number; name: string; teacherName: string | null }
 interface Invite {
   id: number;
   email: string;
   name: string | null;
+  rollNo?: string | null;
   role: string;
   cohortIds: number[] | null;
   acceptedAt: string | null;
@@ -42,6 +45,8 @@ export default function AdminInvitesPage() {
   const [emails, setEmails] = useState("");
   const [role, setRole] = useState("student");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [query, setQuery] = useState("");
+  const [showCount, setShowCount] = useState(100);
 
   const cohortName = useMemo(() => {
     const m = new Map<number, string>();
@@ -89,6 +94,11 @@ export default function AdminInvitesPage() {
   });
 
   const emailCount = emails.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean).length;
+  const q = query.trim().toLowerCase();
+  const filtered = (invites ?? []).filter(
+    (inv) => !q || inv.email.includes(q) || (inv.name ?? "").toLowerCase().includes(q) || (inv.rollNo ?? "").toLowerCase().includes(q),
+  );
+  const pendingCount = (invites ?? []).filter((i) => !i.acceptedAt).length;
 
   return (
     <PageContainer className="animate-in fade-in duration-300">
@@ -96,6 +106,8 @@ export default function AdminInvitesPage() {
         title="Invitations"
         description="Access is invite-only. Add emails, pick a role and (optionally) cohorts — invitees are placed in those cohorts automatically when they join."
       />
+
+      <RosterImport />
 
       {/* Invite form (handles one or many) */}
       <Card className="shadow-sm mb-8">
@@ -162,13 +174,28 @@ export default function AdminInvitesPage() {
         </CardContent>
       </Card>
 
-      <h2 className="text-lg font-serif font-semibold mb-3">Invited ({invites?.length ?? 0})</h2>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-3">
+        <h2 className="text-lg font-semibold">
+          Invited ({(invites?.length ?? 0).toLocaleString("en-IN")})
+          {pendingCount > 0 && <span className="text-sm font-normal text-muted-foreground"> · {pendingCount.toLocaleString("en-IN")} not joined yet</span>}
+        </h2>
+        <div className="relative sm:w-72">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Input
+            aria-label="Search invitations by name, email or roll number"
+            placeholder="Search name, email or roll no."
+            className="pl-9"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      </div>
       <Card className="shadow-sm">
         <CardContent className="p-0 divide-y">
           {isLoading ? (
             <div className="p-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
-          ) : invites && invites.length > 0 ? (
-            invites.map((inv) => (
+          ) : filtered.length > 0 ? (
+            filtered.slice(0, showCount).map((inv) => (
               <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -180,7 +207,12 @@ export default function AdminInvitesPage() {
                       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="w-3.5 h-3.5" /> Pending</span>
                     )}
                   </div>
-                  {inv.name && <div className="text-sm text-muted-foreground truncate">{inv.email}</div>}
+                  {(inv.name || inv.rollNo) && (
+                    <div className="text-sm text-muted-foreground truncate">
+                      {inv.name ? inv.email : null}
+                      {inv.rollNo ? `${inv.name ? " · " : ""}Roll ${inv.rollNo}` : null}
+                    </div>
+                  )}
                   {inv.cohortIds && inv.cohortIds.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {inv.cohortIds.map((cid) => (
@@ -202,9 +234,16 @@ export default function AdminInvitesPage() {
             ))
           ) : (
             <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
-              <Mail className="w-8 h-8 mb-2 opacity-20" />
-              <p className="text-sm">No invitations yet. Add emails above to give people access.</p>
+              <Mail className="w-8 h-8 mb-2 opacity-20" aria-hidden />
+              <p className="text-sm">
+                {q ? `No one matches "${query}".` : "No invitations yet. Import a roster or add emails above to give people access."}
+              </p>
             </div>
+          )}
+          {filtered.length > showCount && (
+            <button type="button" onClick={() => setShowCount((n) => n + 200)} className="w-full p-3 text-sm text-primary hover:bg-muted">
+              Show more ({(filtered.length - showCount).toLocaleString("en-IN")} remaining)
+            </button>
           )}
         </CardContent>
       </Card>
