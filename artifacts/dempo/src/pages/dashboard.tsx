@@ -210,36 +210,23 @@ function StudentDashboard() {
 
   return (
     <>
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Courses</CardTitle>
-            <BookOpen className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold">{dashboard?.courseCount || 0}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Assignments Due Soon</CardTitle>
-            <Clock className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold">{upcomingAssignments.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Unread Notifications</CardTitle>
-            <Bell className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold">{notifications?.unreadCount ?? 0}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats row: three compact tiles side by side even at 360px, instead of
+          three full-width cards that pushed the course list below the fold. */}
+      <dl className="grid grid-cols-3 gap-2 sm:gap-4">
+        {[
+          { label: "Courses", value: dashboard?.courseCount || 0, icon: BookOpen },
+          { label: "Due soon", value: upcomingAssignments.length, icon: Clock },
+          { label: "Unread", value: notifications?.unreadCount ?? 0, icon: Bell },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-lg border bg-card px-3 py-3 sm:px-5 sm:py-4">
+            <dt className="flex items-center justify-between gap-2 text-xs sm:text-sm text-muted-foreground">
+              <span className="truncate">{stat.label}</span>
+              <stat.icon className="hidden sm:block w-4 h-4 shrink-0" aria-hidden />
+            </dt>
+            <dd className="mt-1 text-2xl sm:text-3xl font-semibold tabular-nums">{stat.value}</dd>
+          </div>
+        ))}
+      </dl>
 
       {/* Course Progress */}
       <section>
@@ -479,7 +466,7 @@ function TeacherDashboard() {
   return (
     <>
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Courses</CardTitle>
@@ -591,6 +578,17 @@ function TeacherDashboard() {
   );
 }
 
+/**
+ * "Welcome back, Asha" — not "Welcome back, Dr." (the old code took the first
+ * word of the name, which is the title for most faculty).
+ */
+const HONORIFICS = new Set(["dr", "dr.", "prof", "prof.", "mr", "mr.", "mrs", "mrs.", "ms", "ms.", "shri", "smt", "smt.", "fr", "fr.", "sr", "sr."]);
+function greeting(name: string | null | undefined): string {
+  const words = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  const first = words.find((w) => !HONORIFICS.has(w.toLowerCase()));
+  return first ? `Welcome back, ${first}` : "Welcome back";
+}
+
 export default function DashboardPage() {
   const { data: user } = useGetMe();
   const { data: dashboard, isLoading } = useGetDashboard();
@@ -613,8 +611,8 @@ export default function DashboardPage() {
   return (
     <PageContainer width="wide" className="animate-in fade-in duration-300">
       <PageHeader
-        title={`Welcome back, ${user?.name?.split(" ")[0] || "User"}`}
-        description="Here is your overview for today."
+        title={greeting(user?.name)}
+        description={new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
       />
       <div className="space-y-8">
         {isTeacher ? <TeacherDashboard /> : <StudentDashboard />}

@@ -138,7 +138,7 @@ export default function SubmissionViewPage({ id }: { id: string }) {
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs uppercase font-bold tracking-widest text-muted-foreground">Dempo Learn AI Analysis</span>
+                <span className="text-sm font-semibold text-muted-foreground">AI suggestion (your teacher decides the final mark)</span>
               </div>
               <CardTitle className="text-lg font-semibold">Draft Assessment</CardTitle>
             </CardHeader>

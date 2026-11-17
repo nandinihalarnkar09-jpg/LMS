@@ -148,27 +148,35 @@ function truncate(text: string, maxLength = 300): string {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }
 
+/**
+ * The message a person sees when a request fails. Every screen shows
+ * `err.message` in a toast, so this is the one place that decides whether a
+ * student reads "HTTP 500 Internal Server Error: Internal server error" or
+ * something they can act on. The raw status stays on `ApiError.status`.
+ */
 function buildErrorMessage(response: Response, data: unknown): string {
-  const prefix = `HTTP ${response.status} ${response.statusText}`;
+  const serverMessage =
+    typeof data === "string"
+      ? null // HTML/text bodies are proxies or crashes, not messages for people
+      : (getStringField(data, "detail") ??
+        getStringField(data, "message") ??
+        getStringField(data, "error_description") ??
+        getStringField(data, "error"));
+  const status = response.status;
 
-  if (typeof data === "string") {
-    const text = data.trim();
-    return text ? `${prefix}: ${truncate(text)}` : prefix;
+  if (status >= 500) {
+    return "Something failed on our side. Please try again in a minute — if it keeps happening, let your teacher or the college office know.";
   }
-
-  const title = getStringField(data, "title");
-  const detail = getStringField(data, "detail");
-  const message =
-    getStringField(data, "message") ??
-    getStringField(data, "error_description") ??
-    getStringField(data, "error");
-
-  if (title && detail) return `${prefix}: ${title} — ${detail}`;
-  if (detail) return `${prefix}: ${detail}`;
-  if (message) return `${prefix}: ${message}`;
-  if (title) return `${prefix}: ${title}`;
-
-  return prefix;
+  if (status === 401) return "Your session has ended. Sign in again to continue.";
+  if (status === 413) return "That file is too large to upload. Try a smaller file, or share a link instead.";
+  if (status === 429) return "That was a lot of requests in a short time. Wait a few seconds and try again.";
+  // Server messages for 4xx are written for people ("Only the course teacher
+  // can publish quizzes"); show them as they are. Zod dumps are not.
+  if (serverMessage && !serverMessage.trim().startsWith("[")) return truncate(serverMessage);
+  if (status === 403) return "You don't have access to this.";
+  if (status === 404) return "We couldn't find that. It may have been moved or removed.";
+  if (status === 400 || status === 422) return "Some of the details aren't valid. Check the form and try again.";
+  return `The request didn't go through (error ${status}). Please try again.`;
 }
 
 export class ApiError<T = unknown> extends Error {
@@ -360,7 +368,17 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  let response: Response;
+  try {
+    response = await fetch(input, { ...init, method, headers });
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") throw err;
+    // Browsers say "Failed to fetch" / "NetworkError…" — say what it means.
+    throw new Error(
+      "We couldn't reach the server. Check your WiFi or mobile data and try again.",
+      { cause: err },
+    );
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

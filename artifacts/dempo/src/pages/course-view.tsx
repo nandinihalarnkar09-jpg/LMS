@@ -1033,7 +1033,7 @@ function RosterView({ courseId }: { courseId: number }) {
           </CardContent>
         </Card>
         <p className="text-xs text-muted-foreground mt-3 px-1">
-          Students appear here once an admin has invited them to Dempo. Add them to your course directly — no code needed — or they can self-join with the invite code.
+          Students appear here once an admin has invited them to the college. Add them to your course directly — no code needed — or they can self-join with the invite code.
         </p>
       </div>
     </div>
