@@ -164,6 +164,7 @@ function buildErrorMessage(response: Response, data: unknown): string {
         getStringField(data, "error"));
   const status = response.status;
 
+  if (status === 503 && serverMessage) return truncate(serverMessage);
   if (status >= 500) {
     return "Something failed on our side. Please try again in a minute — if it keeps happening, let your teacher or the college office know.";
   }

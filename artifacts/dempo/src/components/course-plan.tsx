@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useAppConfig } from "@/lib/app-config";
+import { UploadsOffNotice } from "@/components/uploads-off";
 import {
   useGetCoursePlan, useUpdateCoursePlan, getGetCoursePlanQueryKey,
   useRequestUploadUrl,
@@ -310,6 +312,7 @@ function TeacherPlanEditor({ courseId, plan, extras }: { courseId: number; plan:
   const [hourLinks, setHourLinks] = useState<Map<number, string>>(new Map());
   const [hourFiles, setHourFiles] = useState<Map<number, PlanFile[]>>(new Map());
   const [uploadingHour, setUploadingHour] = useState<number | null>(null);
+  const { uploadsEnabled } = useAppConfig();
   const [saving, setSaving] = useState(false);
   const [savingSession, setSavingSession] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -876,11 +879,15 @@ function TeacherPlanEditor({ courseId, plan, extras }: { courseId: number; plan:
                                 ))}
                               </ul>
                             )}
+                            {uploadsEnabled ? (
                             <label className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-input bg-background text-sm cursor-pointer hover:bg-muted/50 hover:border-primary/40 transition-colors w-fit">
                               {uploadingHour === hour ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
                               {uploadingHour === hour ? "Uploading..." : "Attach files"}
                               <input type="file" multiple className="hidden" disabled={uploadingHour === hour} onChange={e => { handleFiles(hour, e.target.files); e.target.value = ""; }} />
                             </label>
+                            ) : (
+                              <UploadsOffNotice />
+                            )}
                           </div>
                         </div>
                       </div>

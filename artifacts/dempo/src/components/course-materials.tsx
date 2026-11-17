@@ -1,4 +1,6 @@
 import { useState, useRef } from "react";
+import { useAppConfig } from "@/lib/app-config";
+import { UploadsOffNotice } from "@/components/uploads-off";
 import {
   useListCourseMaterials,
   useCreateCourseMaterial,
@@ -204,6 +206,7 @@ function MaterialDialog({ courseId, existing }: { courseId: number; existing?: C
   const [attachments, setAttachments] = useState<MaterialFile[]>(existing?.attachments ?? []);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadsEnabled } = useAppConfig();
 
   const createMaterial = useCreateCourseMaterial();
   const updateMaterial = useUpdateCourseMaterial();
@@ -366,6 +369,7 @@ function MaterialDialog({ courseId, existing }: { courseId: number; existing?: C
                 ))}
               </ul>
             )}
+            {uploadsEnabled ? (
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                 {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Paperclip className="w-4 h-4 mr-2" />}
@@ -373,6 +377,9 @@ function MaterialDialog({ courseId, existing }: { courseId: number; existing?: C
               </Button>
               <span className="text-xs text-muted-foreground">Any file type. Students can download these.</span>
             </div>
+            ) : (
+              <UploadsOffNotice />
+            )}
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFilesSelected} />
           </div>
 

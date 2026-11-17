@@ -9,7 +9,14 @@ try {
   // No .env file — fine in CI and production.
 }
 
-if (!process.env.DATABASE_URL) {
+// Schema changes go over a direct (unpooled) connection when the host offers one.
+const url =
+  process.env.DATABASE_URL_UNPOOLED ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL;
+
+if (!url) {
   throw new Error(
     "DATABASE_URL is not set. Copy .env.example to .env at the repo root and point it at your Postgres (see README.md).",
   );
@@ -21,6 +28,6 @@ export default defineConfig({
   schema: path.join(__dirname, "./src/schema/index.ts").replace(/\\/g, "/"),
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url,
   },
 });
