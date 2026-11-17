@@ -6,11 +6,13 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed": "node --env-file-if-exists=../.env --import tsx ./src/seed.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db-sync": "node --env-file-if-exists=../.env --import tsx ./src/db-sync.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "drizzle-kit": "^0.31.10"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",

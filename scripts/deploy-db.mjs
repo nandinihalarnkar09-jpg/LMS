@@ -28,6 +28,7 @@ function run(args) {
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
-run(["--filter", "@workspace/db", "run", "push-force"]);
+// Non-interactive and data-safe (scripts/src/db-sync.ts), unlike drizzle-kit push.
+run(["--filter", "@workspace/scripts", "run", "db-sync"]);
 if (demo) run(["--filter", "@workspace/scripts", "run", "seed"]);
 console.log("[deploy-db] done");
