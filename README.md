@@ -48,8 +48,21 @@ Re-seed from scratch with `pnpm run db:seed --reset`.
 | Seed and dev tooling | `scripts/` | `scripts/src/seed.ts`, `scripts/dev.mjs`, `scripts/check-contrast.py` |
 | CI | `.github/workflows/ci.yml` | Typecheck, test (Postgres 16) and build, on Node 22 and 24, with a frozen lockfile |
 
+## Put a live demo online (Vercel + Neon, free tiers, ~5 minutes)
+
+The repo is set up so nobody has to copy a database password or API key by hand. The database connection is injected by Vercel, and the build creates the tables and loads the fictional demo college (`scripts/deploy-db.mjs`).
+
+1. **Vercel → Add New → Project →** import `LMS` from GitHub. Leave every build setting at its default; `vercel.json` drives the build.
+2. Before you press Deploy, add three **Environment Variables**. These are plain switches, not secrets:
+   `AUTH_MODE` = `dev` · `VITE_AUTH_MODE` = `dev` · `PUBLIC_DEMO` = `true`
+3. Deploy. The first build stops with *"No DATABASE_URL… Connect a Postgres database"*. That's expected.
+4. In the project: **Storage → Create Database → Neon →** region **Singapore (sin1)**, Auth off → **Create**, and connect it to the `LMS` project (all environments).
+5. **Deployments → ⋯ → Redeploy.** Open the URL and choose any sample account.
+
+What you get: every feature working on fictional data, a "Demo site" label on every page, and file uploads replaced by "share a link" until a storage bucket is connected. For a **real** college deployment, leave out the three switches and set Clerk keys and `ADMIN_EMAILS` instead (see `DEPLOY-VERCEL.md`). Without `PUBLIC_DEMO=true`, the API refuses to start in demo sign-in mode.
+
 ## Where it deploys
-- **Production target: Vercel**, one project. The SPA is served from the CDN and the API runs as one serverless function pinned to Mumbai (`bom1`). See `vercel.json`, `api/index.mjs` and [`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md).
+- **Production target: Vercel**, one project. The SPA is served from the CDN and the API runs as one serverless function in Singapore (`sin1`), next to the Neon database (Vercel's Neon integration offers no Mumbai region). See `vercel.json`, `api/index.mjs` and [`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md).
 - **Database: Supabase (Mumbai), probably.** Commit `5b913b9` and [`MIGRATE-SUPABASE.md`](MIGRATE-SUPABASE.md) point that way. *TODO, unverified: the live region and storage provider aren't recorded in the repo.*
 - `render.yaml` and `.replit` are older deploy targets, kept for reference. `ARCHITECTURE.md`'s DigitalOcean plan was never carried out.
 - **Do not touch the original live deployment.** Deploy your own copy.
@@ -57,7 +70,7 @@ Re-seed from scratch with `pnpm run db:seed --reset`.
 ## Known broken or missing (as of this README)
 - **Assignment lifecycle:** no resubmission, no late flag, no "return to student" (`artifacts/api-server/src/routes/submissions.ts`).
 - **Indian academic gradebook:** no internal/external split, semester aggregation or SGPA/CGPA.
-- **Uploads and email are off until configured:** object storage (`STORAGE_*`) and MSG91 (`MSG91_*`). WhatsApp/SMS flags have no code behind them.
+- **Uploads and email are off until configured:** object storage (`STORAGE_*`) and MSG91 (`MSG91_*`). Without a bucket, every file picker says "share a link instead" (`GET /api/config`). WhatsApp/SMS flags have no code behind them.
 - **Not built, although `ARCHITECTURE.md` describes them:** Sentry error tracking, and name/roll-number redaction before AI grading. AI grading is **off** by default (`AI_GRADING_ENABLED=false`), and it should stay off until redaction exists.
 - **Database TLS** is encrypted but not certificate-verified in production (`lib/db/src/index.ts`). `MIGRATE-SUPABASE.md` says otherwise.
 - **Leftovers:** Replit config files and Vite plugins, plus the unused `artifacts/mockup-sandbox`.
