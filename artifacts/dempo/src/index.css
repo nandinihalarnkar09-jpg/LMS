@@ -1,4 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap');
+/* Fonts are self-hosted (bundled with the app), not loaded from Google:
+   no third-party request carrying students' IPs, and nothing extra to fetch
+   on slow campus WiFi. Anek Latin (headings) and Mukta (body) are both by
+   Ek Type, Mumbai, and both have Devanagari companions for Konkani/Marathi. */
+@import '@fontsource-variable/anek-latin/standard.css';
+@import '@fontsource/mukta/400.css';
+@import '@fontsource/mukta/500.css';
+@import '@fontsource/mukta/600.css';
+@import '@fontsource/mukta/700.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -68,6 +76,7 @@
 
   --font-sans: var(--app-font-sans);
   --font-serif: var(--app-font-serif);
+  --font-display: var(--app-font-display);
   --font-mono: var(--app-font-mono);
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -77,80 +86,90 @@
 }
 
 :root {
-  --button-outline: rgba(55, 53, 47, 0.16);
-  --badge-outline: rgba(55, 53, 47, 0.12);
+  /*
+   * LMS · Srinivassa Sinai Dempo College — design tokens.
+   * Palette taken from the college crest: Dempo indigo (the river in the crest),
+   * laterite (the pillar; Goa's building stone) used only in the brand mark,
+   * and cool slate neutrals. Every text/background pair below is >= 4.5:1
+   * (ratios in docs/takeover/06-design-rationale.md).
+   */
+  --button-outline: rgba(26, 31, 51, 0.16);
+  --badge-outline: rgba(26, 31, 51, 0.12);
 
   --opaque-button-border-intensity: -8;
 
-  --elevate-1: rgba(55, 53, 47, 0.04);
-  --elevate-2: rgba(55, 53, 47, 0.08);
+  --elevate-1: rgba(26, 31, 51, 0.04);
+  --elevate-2: rgba(26, 31, 51, 0.08);
 
-  /* Notion-neutral: white canvas, warm near-black ink, hairline warm-gray lines */
-  --background: 0 0% 100%;
-  --foreground: 40 8% 18%;
-  --border: 42 10% 90%;
+  --background: 0 0% 100%;            /* #FFFFFF canvas */
+  --foreground: 228 32% 15%;          /* #1A1F33 ink — 16.3:1 */
+  --border: 225 19% 87%;              /* #D9DCE5 */
 
   --card: 0 0% 100%;
-  --card-foreground: 40 8% 18%;
-  --card-border: 42 10% 90%;
+  --card-foreground: 228 32% 15%;
+  --card-border: 225 19% 87%;
 
-  --sidebar: 48 12% 97%;
-  --sidebar-foreground: 40 6% 30%;
-  --sidebar-border: 42 10% 91%;
-  --sidebar-primary: 40 8% 18%;
+  --sidebar: 228 26% 96%;             /* #F3F4F8 */
+  --sidebar-foreground: 228 32% 15%;
+  --sidebar-border: 225 19% 89%;
+  --sidebar-primary: 232 56% 36%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 45 12% 93%;
-  --sidebar-accent-foreground: 40 8% 18%;
-  --sidebar-ring: 212 78% 51%;
+  --sidebar-accent: 231 44% 92%;      /* active nav: indigo tint */
+  --sidebar-accent-foreground: 232 56% 30%;
+  --sidebar-ring: 232 56% 36%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 40 8% 18%;
-  --popover-border: 42 10% 90%;
+  --popover-foreground: 228 32% 15%;
+  --popover-border: 225 19% 87%;
 
-  --primary: 40 8% 18%;
+  --primary: 232 56% 36%;             /* #28358F Dempo indigo — 10.5:1 on white */
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 45 12% 95%;
-  --secondary-foreground: 40 8% 18%;
+  --brand-laterite: 8 51% 36%;        /* #8C3B2E — brand mark only */
 
-  --muted: 48 10% 96%;
-  --muted-foreground: 40 4% 45%;
+  --secondary: 228 26% 95%;
+  --secondary-foreground: 228 32% 15%;
 
-  --accent: 45 12% 94%;
-  --accent-foreground: 40 8% 18%;
+  --muted: 228 26% 96%;
+  --muted-foreground: 224 15% 39%;    /* #555D73 — 6.6:1 on white, 6.0:1 on sidebar */
 
-  --destructive: 2 64% 52%;
+  --accent: 231 44% 94%;              /* #E8EAF6 hover/selected tint */
+  --accent-foreground: 232 56% 30%;
+
+  --destructive: 4 76% 40%;           /* #B42318 — 6.6:1 */
   --destructive-foreground: 0 0% 100%;
 
-  --input: 42 10% 88%;
-  --ring: 212 78% 51%;
+  --input: 225 16% 80%;
+  --ring: 232 56% 36%;
 
-  /* Restrained, muted chart/status hues */
-  --chart-1: 212 60% 48%;
-  --chart-2: 146 38% 42%;
-  --chart-3: 35 60% 50%;
-  --chart-4: 262 45% 55%;
-  --chart-5: 2 64% 55%;
+  --chart-1: 232 56% 42%;
+  --chart-2: 8 51% 42%;
+  --chart-3: 172 45% 32%;
+  --chart-4: 38 80% 40%;
+  --chart-5: 280 30% 45%;
 
-  --success: 146 38% 40%;
+  --success: 148 59% 28%;             /* #1D7044 — 6.1:1 */
   --success-foreground: 0 0% 100%;
-  --warning: 35 62% 46%;
+  --warning: 36 100% 27%;             /* #8A5300 — 6.3:1 (was 3.3:1) */
   --warning-foreground: 0 0% 100%;
-  --danger: 2 64% 52%;
+  --danger: 4 76% 40%;
   --danger-foreground: 0 0% 100%;
-  --info: 212 72% 47%;
+  --info: 232 56% 36%;                /* links/info share the brand indigo */
   --info-foreground: 0 0% 100%;
 
-  --app-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --app-font-serif: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --app-font-sans: 'Mukta', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --app-font-serif: 'Anek Latin Variable', 'Mukta', ui-sans-serif, system-ui, sans-serif;
+  --app-font-display: 'Anek Latin Variable', 'Mukta', ui-sans-serif, system-ui, sans-serif;
   --app-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-  --radius: 0.5rem;
+  /* Tighter corners than the template default: 4px controls, 6px cards. */
+  --radius: 0.375rem;
 
-  --shadow-sm: 0 1px 2px 0 rgb(15 15 15 / 0.04);
-  --shadow: 0 1px 2px 0 rgb(15 15 15 / 0.05);
-  --shadow-md: 0 2px 6px -1px rgb(15 15 15 / 0.06), 0 1px 2px -1px rgb(15 15 15 / 0.05);
-  --shadow-lg: 0 8px 24px -6px rgb(15 15 15 / 0.10), 0 2px 6px -2px rgb(15 15 15 / 0.06);
+  /* Hierarchy comes from borders and spacing, not drop shadows. */
+  --shadow-sm: 0 1px 1px 0 rgb(26 31 51 / 0.03);
+  --shadow: 0 1px 2px 0 rgb(26 31 51 / 0.04);
+  --shadow-md: 0 2px 6px -2px rgb(26 31 51 / 0.08);
+  --shadow-lg: 0 10px 28px -10px rgb(26 31 51 / 0.18);
 
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
@@ -165,60 +184,62 @@
   --elevate-1: rgba(255, 255, 255, 0.05);
   --elevate-2: rgba(255, 255, 255, 0.10);
 
-  /* Notion dark: #1c1c1c canvas, soft-white ink, low-contrast hairlines */
-  --background: 0 0% 11%;
-  --foreground: 0 0% 92%;
-  --border: 0 0% 20%;
+  /* Night indigo, for late-evening study — not pure black. */
+  --background: 233 42% 12%;          /* #11142A */
+  --foreground: 228 28% 93%;          /* 15.1:1 */
+  --border: 231 31% 25%;
 
-  --card: 0 0% 13%;
-  --card-foreground: 0 0% 92%;
-  --card-border: 0 0% 20%;
+  --card: 232 39% 15%;
+  --card-foreground: 228 28% 93%;
+  --card-border: 231 31% 25%;
 
-  --sidebar: 0 0% 9%;
-  --sidebar-foreground: 0 0% 76%;
-  --sidebar-border: 0 0% 18%;
-  --sidebar-primary: 0 0% 92%;
-  --sidebar-primary-foreground: 0 0% 12%;
-  --sidebar-accent: 0 0% 17%;
-  --sidebar-accent-foreground: 0 0% 92%;
-  --sidebar-ring: 212 78% 58%;
+  --sidebar: 233 44% 10%;
+  --sidebar-foreground: 228 28% 90%;
+  --sidebar-border: 231 31% 22%;
+  --sidebar-primary: 231 79% 81%;
+  --sidebar-primary-foreground: 233 42% 12%;
+  --sidebar-accent: 232 35% 22%;
+  --sidebar-accent-foreground: 231 79% 86%;
+  --sidebar-ring: 231 79% 81%;
 
-  --popover: 0 0% 14%;
-  --popover-foreground: 0 0% 92%;
-  --popover-border: 0 0% 20%;
+  --popover: 232 39% 15%;
+  --popover-foreground: 228 28% 93%;
+  --popover-border: 231 31% 25%;
 
-  --primary: 0 0% 92%;
-  --primary-foreground: 0 0% 12%;
+  --primary: 231 79% 81%;             /* #A9B4F5 — 9.1:1 on canvas */
+  --primary-foreground: 233 42% 12%;
 
-  --secondary: 0 0% 18%;
-  --secondary-foreground: 0 0% 92%;
+  --brand-laterite: 9 60% 70%;
 
-  --muted: 0 0% 16%;
-  --muted-foreground: 0 0% 60%;
+  --secondary: 232 33% 20%;
+  --secondary-foreground: 228 28% 93%;
 
-  --accent: 0 0% 18%;
-  --accent-foreground: 0 0% 92%;
+  --muted: 232 33% 18%;
+  --muted-foreground: 228 20% 70%;    /* 7.8:1 */
 
-  --destructive: 2 60% 54%;
-  --destructive-foreground: 0 0% 100%;
+  --accent: 232 35% 22%;
+  --accent-foreground: 231 79% 88%;
 
-  --input: 0 0% 24%;
-  --ring: 212 78% 58%;
+  --destructive: 5 81% 73%;
+  --destructive-foreground: 233 42% 12%;
 
-  --chart-1: 212 65% 60%;
-  --chart-2: 146 40% 52%;
-  --chart-3: 35 66% 58%;
-  --chart-4: 262 50% 66%;
-  --chart-5: 2 62% 62%;
+  --input: 231 25% 32%;
+  --ring: 231 79% 81%;
 
-  --success: 146 42% 50%;
-  --success-foreground: 0 0% 100%;
-  --warning: 35 68% 55%;
-  --warning-foreground: 0 0% 8%;
-  --danger: 2 62% 58%;
-  --danger-foreground: 0 0% 100%;
-  --info: 212 78% 62%;
-  --info-foreground: 0 0% 8%;
+  --chart-1: 231 79% 76%;
+  --chart-2: 9 60% 66%;
+  --chart-3: 172 45% 55%;
+  --chart-4: 38 85% 62%;
+  --chart-5: 280 40% 72%;
+
+  --success: 145 50% 57%;
+  --success-foreground: 233 42% 12%;
+  --warning: 38 85% 62%;
+  --warning-foreground: 233 42% 12%;
+  --danger: 5 81% 73%;
+  --danger-foreground: 233 42% 12%;
+  --info: 231 79% 81%;
+  --info-foreground: 233 42% 12%;
 }
 
 @layer base {
@@ -226,12 +247,41 @@
     @apply border-border;
   }
 
+  html {
+    /* Body text at 16px with generous leading: an LMS is read for hours. */
+    font-size: 100%;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    line-height: 1.55;
+    font-feature-settings: "kern";
   }
-  
+
+  /* Headings: Anek Latin, semi-condensed, on a 1.2 (minor third) scale.
+     Sizes come from the Tailwind classes on each heading; the family,
+     width and weight come from here, so every screen changes at once. */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-sans font-semibold tracking-tight;
+    font-family: var(--app-font-display);
+    font-stretch: 88%;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 1.2;
+  }
+
+  /* One visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

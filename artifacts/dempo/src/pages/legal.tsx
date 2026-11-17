@@ -1,11 +1,12 @@
 import { type ReactNode } from "react";
+import { BRAND } from "@/lib/brand";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 
-const ORG = "Srinivassa Sinai Dempo College (Autonomous), Goa";
+const ORG = BRAND.institutionFull;
 const SCHOOL = "Dempo AI Business School";
-const APP = "Dempo Learn";
+const APP = BRAND.name;
 const CONTACT = "[privacy@your-college-domain]"; // replace with the real grievance/contact email
 const UPDATED = "24 July 2026";
 

@@ -4,16 +4,21 @@
  * change (plus the colour tokens in index.css).
  */
 export const BRAND = {
-  name: "Dempo Learn",
-  institution: "Dempo",
+  /** Product name. */
+  name: "LMS",
+  /** Owning institution — shown beside the product name everywhere. */
+  institution: "Dempo College",
+  institutionFull: "Srinivassa Sinai Dempo College (Autonomous), Goa",
+  /** The college crest (public/logo.png). */
   logo: "logo.png",
+  positioning: "Coursework, quizzes and marks for Dempo College — built to keep working on campus WiFi.",
   clerk: {
-    colorPrimary: "hsl(40 8% 18%)",
-    colorBackground: "hsl(0 0% 100%)",
-    fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+    colorPrimary: "#28358F",
+    colorBackground: "#FFFFFF",
+    fontFamily: "'Mukta', ui-sans-serif, system-ui, sans-serif",
   },
   copy: {
-    signInSubtitle: "Welcome back! Please sign in to continue",
-    signUpSubtitle: "Join the fun — it's free",
+    signInSubtitle: "Use the email address the college registered for you.",
+    signUpSubtitle: "Use the email address your invitation was sent to.",
   },
 } as const;

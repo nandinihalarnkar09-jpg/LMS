@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { SignOutButton, useAuth } from "@/lib/auth";
+import { BrandMark } from "@/components/brand-mark";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, BookOpen, GraduationCap, LayoutDashboard, Settings, MessageSquare, Menu, ScrollText, Users as UsersIcon, CalendarDays, NotebookPen, Mail, BarChart3, Target } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -110,7 +111,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   const roleLabel =
     user.role === "teacher"
-      ? "Professor"
+      ? "Faculty"
       : user.role === "dean"
         ? "Dean"
         : user.role === "course_coordinator"
@@ -122,8 +123,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between h-16 px-4 border-b bg-card">
         <div className="flex items-center gap-2">
-          <img src={import.meta.env.BASE_URL + "logo.png"} alt="Dempo Learn Logo" className="w-8 h-8" />
-          <span className="font-serif font-semibold text-lg">Dempo Learn</span>
+          <BrandMark size="sm" />
         </div>
         <div className="flex items-center gap-1">
           <NotificationBell />
@@ -134,8 +134,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <SheetContent side="left" className="w-64 p-0">
             <div className="flex flex-col h-full bg-card">
               <div className="p-4 border-b flex items-center gap-2">
-                <img src={import.meta.env.BASE_URL + "logo.png"} alt="Dempo Learn" className="w-6 h-6" />
-                <span className="font-serif font-semibold">Dempo Learn</span>
+                <BrandMark size="sm" />
               </div>
               <div className="flex-1 py-4 overflow-y-auto px-2">
                 <NavList items={navigation} location={location} />
@@ -169,8 +168,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar */}
       <div className="hidden md:flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground h-screen sticky top-0 shrink-0">
         <div className="h-14 flex items-center gap-2 px-4">
-          <img src={import.meta.env.BASE_URL + "logo.png"} alt="Dempo Learn Logo" className="w-7 h-7 rounded-md" />
-          <span className="font-semibold text-[15px] text-foreground">Dempo Learn</span>
+          <BrandMark size="sm" />
           <div className="ml-auto -mr-1">
             <NotificationBell />
           </div>

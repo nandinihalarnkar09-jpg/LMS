@@ -4,6 +4,7 @@ import { useAuth, SignOutButton } from "@/lib/auth";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { Loader2, MailQuestion } from "lucide-react";
 import { Shell } from "@/components/layout";
+import { BRAND } from "@/lib/brand";
 
 function NotInvited() {
   return (
@@ -11,9 +12,9 @@ function NotInvited() {
       <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-5">
         <MailQuestion className="w-8 h-8" />
       </div>
-      <h1 className="text-2xl font-serif font-bold text-foreground mb-2">You're not on the list yet</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-2">This email isn't registered yet</h1>
       <p className="text-muted-foreground max-w-md mb-8">
-        Dempo Learn is invite-only. Ask your professor or administrator to add your email, then sign in again with that address.
+        {BRAND.name} is only for people the college has invited. Sign out and sign in with your college email, or ask the college office to add the address you used.
       </p>
       <SignOutButton>
         <button className="px-4 py-2 rounded-md border font-medium text-muted-foreground hover:text-foreground">
@@ -215,11 +216,10 @@ export function AppRouter() {
         {/* Catch-all */}
         <Route>
           <div className="flex flex-col items-center justify-center min-h-screen text-center px-4">
-            <h1 className="text-6xl font-serif text-primary mb-4">404</h1>
-            <h2 className="text-2xl font-medium text-foreground mb-2">Page not found</h2>
-            <p className="text-muted-foreground mb-8">The page you are looking for doesn't exist or has been moved.</p>
+            <h1 className="text-2xl font-semibold text-foreground mb-2">There's nothing at this address</h1>
+            <p className="text-muted-foreground mb-8 max-w-md">The link may be old, or the course or assignment may have been removed by your teacher.</p>
             <a href="/dashboard" className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium">
-              Go Home
+              Go to your dashboard
             </a>
           </div>
         </Route>
