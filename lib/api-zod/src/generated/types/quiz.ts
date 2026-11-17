@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { QuizAttempt } from './quizAttempt';
+import type { QuizMySession } from './quizMySession';
 import type { QuizQuestion } from './quizQuestion';
 import type { QuizStatus } from './quizStatus';
 
@@ -18,6 +19,11 @@ export interface Quiz {
   /** @nullable */
   dueDate?: Date | null;
   status: QuizStatus;
+  /**
+     * Exam mode. When set, each student gets this many minutes from the moment they start; the server enforces it.
+     * @nullable
+     */
+  timeLimitMinutes?: number | null;
   /** @nullable */
   resultsPublishedAt?: Date | null;
   createdAt: Date;
@@ -26,4 +32,6 @@ export interface Quiz {
   attemptCount?: number;
   questions?: QuizQuestion[];
   myAttempt?: QuizAttempt | null;
+  /** The student's in-progress timed attempt, if they have started one. */
+  mySession?: QuizMySession;
 }

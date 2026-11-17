@@ -19,6 +19,10 @@ export interface QuizAttempt {
   score?: number | null;
   maxScore: number;
   status: QuizAttemptStatus;
+  /** @nullable */
+  startedAt?: Date | null;
+  /** True when time ran out and the server submitted the student's last saved answers. */
+  autoSubmitted?: boolean;
   submittedAt: Date;
   /** @nullable */
   gradedAt?: Date | null;

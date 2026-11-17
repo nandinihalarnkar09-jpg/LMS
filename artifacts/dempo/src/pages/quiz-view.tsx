@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   useGetMe,
   useGetQuiz,
-  useCreateQuizAttempt,
   useListQuizAttempts,
   useGradeQuizAttempt,
   usePublishQuiz,
@@ -28,7 +27,9 @@ import { QuizFormDialog } from "@/components/quiz-dialog";
 import {
   Loader2, Clock, Award, CheckCircle, CheckCircle2, XCircle, Circle,
   Pencil, Trash2, Megaphone, Send, ListChecks, Type, ChevronDown, ChevronUp, Sparkles,
+  Timer, Cloud, CloudOff, WifiOff, Check,
 } from "lucide-react";
+import { useExamSession, formatRemaining, type SaveState } from "@/components/exam-session";
 import { format } from "date-fns";
 
 export default function QuizViewPage({ id }: { id: string }) {
@@ -78,6 +79,15 @@ export default function QuizViewPage({ id }: { id: string }) {
                 {quiz.dueDate ? format(new Date(quiz.dueDate), "PPP p") : "None"}
               </div>
             </div>
+            {quiz.timeLimitMinutes ? (
+              <div>
+                <div className="text-xs uppercase font-bold text-muted-foreground tracking-wider mb-1">Time Limit</div>
+                <div className="font-medium flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-primary" aria-hidden />
+                  {quiz.timeLimitMinutes} minutes · exam mode
+                </div>
+              </div>
+            ) : null}
             <div>
               <div className="text-xs uppercase font-bold text-muted-foreground tracking-wider mb-1">Total Points</div>
               <div className="font-medium flex items-center gap-2">
@@ -318,6 +328,7 @@ function AttemptRow({ attempt, quiz, questions }: { attempt: any; quiz: any; que
             <div className="font-medium truncate">{attempt.studentName ?? "Student"}</div>
             <div className="text-sm text-muted-foreground">
               Submitted {format(new Date(attempt.submittedAt), "MMM d, h:mm a")}
+              {attempt.autoSubmitted ? " · auto-submitted when time ran out" : ""}
             </div>
           </div>
           <span className={`px-2 py-1 rounded-full text-xs font-medium border ${attempt.status === "graded" ? "bg-success/10 text-success border-success/20" : "bg-warning/12 text-warning border-warning/25"}`}>
@@ -391,72 +402,170 @@ function AttemptRow({ attempt, quiz, questions }: { attempt: any; quiz: any; que
 /* ---------------- Student view ---------------- */
 
 function StudentQuizBody({ quiz }: { quiz: any }) {
+  const [started, setStarted] = useState(false);
   if (quiz.myAttempt) {
     return quiz.resultsPublishedAt ? (
       <StudentResults quiz={quiz} />
     ) : (
       <Card className="border-success/20 bg-success/10">
         <CardContent className="p-8 flex flex-col items-center text-center">
-          <CheckCircle className="w-12 h-12 text-success mb-4" />
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-2">Quiz Submitted</h2>
+          <CheckCircle className="w-12 h-12 text-success mb-4" aria-hidden />
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-2">Quiz submitted</h2>
           <p className="text-muted-foreground max-w-md">
-            Your answers are in. Your score and the correct answers will appear here once your teacher publishes the results.
+            {quiz.myAttempt.autoSubmitted
+              ? "Time ran out, so the answers you had saved were submitted for you. "
+              : "Your answers are in. "}
+            Your score and the correct answers will appear here once your teacher publishes the results.
           </p>
         </CardContent>
       </Card>
     );
   }
+  // Timed quiz not yet started: explain the rules before the clock runs.
+  if (quiz.timeLimitMinutes && !quiz.mySession && !started) {
+    return <TimedQuizIntro quiz={quiz} onStart={() => setStarted(true)} />;
+  }
   return <StudentQuizForm quiz={quiz} />;
 }
 
+function TimedQuizIntro({ quiz, onStart }: { quiz: any; onStart: () => void }) {
+  return (
+    <Card className="shadow-sm">
+      <CardContent className="p-6 md:p-8 space-y-5">
+        <div className="flex items-start gap-3">
+          <Timer className="w-6 h-6 text-primary shrink-0 mt-0.5" aria-hidden />
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">
+              You'll have {quiz.timeLimitMinutes} minute{quiz.timeLimitMinutes === 1 ? "" : "s"} once you start
+            </h2>
+            <p className="text-muted-foreground mt-1">
+              {quiz.questionCount ?? 0} question{quiz.questionCount === 1 ? "" : "s"} · {quiz.maxScore ?? 0} points · one attempt
+            </p>
+          </div>
+        </div>
+        <ul className="space-y-2 text-sm text-foreground/90 list-disc pl-5">
+          <li>The clock starts when you press <strong>Start quiz</strong> and keeps running even if you close the page.</li>
+          <li>Your answers save automatically every few seconds. If your WiFi drops, keep working — we'll save as soon as you reconnect.</li>
+          <li>If your phone or laptop dies, open this page again on any device and carry on where you left off.</li>
+          <li>When time runs out, your last saved answers are submitted for you.</li>
+        </ul>
+        <Button size="lg" onClick={onStart} className="w-full sm:w-auto">
+          <Timer className="w-4 h-4 mr-2" aria-hidden /> Start quiz
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SaveStatus({ state, lastSavedAt, online }: { state: SaveState; lastSavedAt: Date | null; online: boolean }) {
+  const time = lastSavedAt ? format(lastSavedAt, "h:mm:ss a") : null;
+  let icon = <Cloud className="w-4 h-4" aria-hidden />;
+  let text = "Answers save automatically";
+  let tone = "text-muted-foreground";
+  if (!online || state === "offline") {
+    icon = <WifiOff className="w-4 h-4" aria-hidden />;
+    text = time
+      ? `Offline — answers kept on this device. Last saved to server at ${time}.`
+      : "Offline — answers kept on this device. They'll save when you reconnect.";
+    tone = "text-warning";
+  } else if (state === "saving") {
+    icon = <Loader2 className="w-4 h-4 animate-spin" aria-hidden />;
+    text = "Saving…";
+  } else if (state === "error") {
+    icon = <CloudOff className="w-4 h-4" aria-hidden />;
+    text = "Couldn't save just now — we'll try again in a few seconds.";
+    tone = "text-warning";
+  } else if (time) {
+    icon = <Check className="w-4 h-4" aria-hidden />;
+    text = `All answers saved · ${time}`;
+    tone = "text-success";
+  }
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-sm ${tone}`} role="status" aria-live="polite">
+      {icon}
+      {text}
+    </span>
+  );
+}
+
+function Countdown({ remainingMs }: { remainingMs: number }) {
+  const low = remainingMs <= 5 * 60_000;
+  const critical = remainingMs <= 60_000;
+  // Announce milestones to screen readers, not every second.
+  const minutesLeft = Math.ceil(remainingMs / 60_000);
+  const announce = minutesLeft === 5 || minutesLeft === 1 ? `${minutesLeft} minute${minutesLeft === 1 ? "" : "s"} left` : "";
+  return (
+    <div
+      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 font-semibold tabular-nums ${
+        critical ? "border-danger/40 bg-danger/10 text-danger" : low ? "border-warning/40 bg-warning/10 text-warning" : "bg-card"
+      }`}
+    >
+      <Timer className="w-4 h-4" aria-hidden />
+      <span aria-label={`Time left ${formatRemaining(remainingMs)}`}>{formatRemaining(remainingMs)}</span>
+      <span className="sr-only" aria-live="assertive">{announce}</span>
+    </div>
+  );
+}
+
 function StudentQuizForm({ quiz }: { quiz: any }) {
-  const [answers, setAnswers] = useState<Record<number, { selectedOption?: number; textAnswer?: string }>>({});
-  const createAttempt = useCreateQuizAttempt();
+  const { data: me } = useGetMe();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const questions = quiz.questions ?? [];
+  const onFinished = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: getGetQuizQueryKey(quiz.id) });
+    queryClient.invalidateQueries({ queryKey: getListQuizzesQueryKey(quiz.courseId) });
+  }, [queryClient, quiz.id, quiz.courseId]);
+  const exam = useExamSession(quiz.id, me?.id, onFinished);
 
+  useEffect(() => {
+    if (exam.closedMessage) toast({ title: exam.closedMessage });
+  }, [exam.closedMessage, toast]);
+
+  const questions = exam.questions.length ? exam.questions : (quiz.questions ?? []);
   const unanswered = questions.filter((q: any) => {
-    const a = answers[q.id];
+    const a = exam.answers[q.id];
     if (!a) return true;
     if (q.type === "multiple_choice") return a.selectedOption == null;
     return !a.textAnswer?.trim();
   });
 
+  if (exam.loadError) {
+    return (
+      <Card className="border-warning/30">
+        <CardContent className="p-6 flex items-start gap-3">
+          <WifiOff className="w-5 h-5 text-warning shrink-0 mt-0.5" aria-hidden />
+          <div>
+            <p className="font-medium">We couldn't open the quiz</p>
+            <p className="text-sm text-muted-foreground mt-1">{exam.loadError}</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>Try again</Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!exam.session) {
+    return <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Opening quiz" /></div>;
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createAttempt.mutate(
-      {
-        quizId: quiz.id,
-        data: {
-          answers: questions.map((q: any) => ({
-            questionId: q.id,
-            selectedOption: answers[q.id]?.selectedOption,
-            textAnswer: answers[q.id]?.textAnswer,
-          })),
-        },
-      },
-      {
-        onSuccess: () => {
-          toast({ title: "Quiz submitted", description: "Your answers were turned in." });
-          queryClient.invalidateQueries({ queryKey: getGetQuizQueryKey(quiz.id) });
-          queryClient.invalidateQueries({ queryKey: getListQuizzesQueryKey(quiz.courseId) });
-        },
-        onError: (err: any) =>
-          toast({ title: "Submission failed", description: err?.message || "Something went wrong.", variant: "destructive" }),
-      },
-    );
+    void exam.submit("student");
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="sticky top-0 z-10 -mx-4 md:mx-0 px-4 md:px-5 py-3 bg-background/95 backdrop-blur border-b md:border md:rounded-lg flex flex-wrap items-center justify-between gap-3">
+        <SaveStatus state={exam.saveState} lastSavedAt={exam.lastSavedAt} online={exam.online} />
+        {exam.remainingMs != null && <Countdown remainingMs={exam.remainingMs} />}
+      </div>
+
       {questions.map((q: any, i: number) => (
         <Card key={q.id} className="shadow-sm">
-          <CardContent className="p-6 space-y-4">
+          <CardContent className="p-5 md:p-6 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">{i + 1}</span>
-                <div className="font-medium text-lg">{q.prompt}</div>
+                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0" aria-hidden>{i + 1}</span>
+                <div className="font-medium text-lg" id={`q-${q.id}`}>{q.prompt}</div>
               </div>
               <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-1 rounded shrink-0">
                 {q.points} pt{q.points === 1 ? "" : "s"}
@@ -464,35 +573,45 @@ function StudentQuizForm({ quiz }: { quiz: any }) {
             </div>
 
             {q.type === "multiple_choice" ? (
-              <div className="space-y-2 pl-10">
+              <div className="space-y-2 md:pl-10" role="radiogroup" aria-labelledby={`q-${q.id}`}>
                 {(q.options ?? []).map((opt: string, oi: number) => {
-                  const selected = answers[q.id]?.selectedOption === oi;
+                  const selected = exam.answers[q.id]?.selectedOption === oi;
                   return (
                     <button
                       key={oi}
                       type="button"
-                      onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: { selectedOption: oi } }))}
-                      className={`w-full flex items-center gap-3 p-3 border rounded-lg text-left transition-colors ${selected ? "border-primary bg-primary/5" : "hover:bg-muted/40"}`}
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => exam.setAnswer(q.id, { selectedOption: oi })}
+                      className={`w-full flex items-center gap-3 p-3 border rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected ? "border-primary bg-primary/5" : "hover:bg-muted/40"}`}
                     >
-                      {selected ? <CheckCircle2 className="w-5 h-5 text-primary shrink-0" /> : <Circle className="w-5 h-5 text-muted-foreground shrink-0" />}
+                      {selected ? <CheckCircle2 className="w-5 h-5 text-primary shrink-0" aria-hidden /> : <Circle className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden />}
                       <span>{opt}</span>
                     </button>
                   );
                 })}
               </div>
             ) : (
-              <div className="pl-10">
+              <div className="md:pl-10">
                 <Textarea
-                  placeholder="Type your answer..."
+                  aria-labelledby={`q-${q.id}`}
+                  placeholder="Type your answer…"
                   rows={4}
-                  value={answers[q.id]?.textAnswer ?? ""}
-                  onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: { textAnswer: e.target.value } }))}
+                  value={exam.answers[q.id]?.textAnswer ?? ""}
+                  onChange={(e) => exam.setAnswer(q.id, { textAnswer: e.target.value })}
                 />
               </div>
             )}
           </CardContent>
         </Card>
       ))}
+
+      {exam.submitProblem && (
+        <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm flex items-start gap-2" role="alert">
+          <WifiOff className="w-4 h-4 text-warning shrink-0 mt-0.5" aria-hidden />
+          <span>{exam.submitProblem}</span>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-muted/20 border rounded-xl px-4 md:px-6 py-4">
         <span className="text-sm text-muted-foreground">
@@ -501,9 +620,9 @@ function StudentQuizForm({ quiz }: { quiz: any }) {
             : "All questions answered"}
           {" · "}You can only submit once.
         </span>
-        <Button type="submit" size="lg" disabled={createAttempt.isPending} className="font-semibold px-8 w-full sm:w-auto shrink-0">
-          {createAttempt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Submit Quiz
+        <Button type="submit" size="lg" disabled={exam.submitting} className="font-semibold px-8 w-full sm:w-auto shrink-0">
+          {exam.submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden />}
+          Submit quiz
         </Button>
       </div>
     </form>
