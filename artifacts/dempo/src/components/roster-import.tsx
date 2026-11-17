@@ -165,11 +165,11 @@ export function RosterImport() {
             id="roster-file"
             type="file"
             accept=".csv,text/csv"
-            className="sr-only"
+            className="sr-only peer"
             onChange={(e) => onFile(e.target.files?.[0])}
           />
           <Button asChild variant={result ? "outline" : "default"}>
-            <label htmlFor="roster-file" className="cursor-pointer">
+            <label htmlFor="roster-file" className="cursor-pointer peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[hsl(var(--ring))]">
               {busy === "preview" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden /> : <FileUp className="w-4 h-4 mr-2" aria-hidden />}
               {fileName ? "Choose another file" : "Choose CSV file"}
             </label>
