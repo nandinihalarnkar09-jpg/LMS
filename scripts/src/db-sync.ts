@@ -17,6 +17,7 @@
  */
 import { pushSchema } from "drizzle-kit/api";
 import { sql } from "drizzle-orm";
+import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 import { db, pool } from "@workspace/db";
 import * as schema from "@workspace/db/schema";
 
@@ -37,7 +38,30 @@ async function existingNames(): Promise<Set<string>> {
   return new Set((res.rows as { name: string }[]).map((r) => r.name));
 }
 
+/**
+ * drizzle-kit's planner stops to ask "truncate this table?" before adding a
+ * unique constraint to a table that has rows — even when no duplicates exist.
+ * Add any missing named unique constraints ourselves first (Postgres rejects
+ * the statement if there really are duplicates, which is the right outcome).
+ */
+async function ensureUniqueConstraints(): Promise<void> {
+  for (const value of Object.values(schema)) {
+    if (!(value instanceof PgTable)) continue;
+    const cfg = getTableConfig(value);
+    for (const uc of cfg.uniqueConstraints) {
+      const name = uc.getName();
+      const exists = await db.execute(sql`select 1 from pg_constraint where conname = ${name}`);
+      const tableExists = await db.execute(sql`select 1 from information_schema.tables where table_schema = 'public' and table_name = ${cfg.name}`);
+      if (exists.rows.length || !tableExists.rows.length) continue;
+      const cols = uc.columns.map((c) => `"${c.name}"`).join(", ");
+      console.log(`[db-sync] adding missing unique constraint ${name} on ${cfg.name} (${cols})`);
+      if (!dryRun) await db.execute(sql.raw(`ALTER TABLE "${cfg.name}" ADD CONSTRAINT "${name}" UNIQUE (${cols})`));
+    }
+  }
+}
+
 async function main(): Promise<void> {
+  await ensureUniqueConstraints();
   const plan = await pushSchema(schema as Record<string, unknown>, db as never);
   const statements = plan.statementsToExecute;
   if (statements.length === 0) {
