@@ -60,9 +60,46 @@ async function ensureUniqueConstraints(): Promise<void> {
   }
 }
 
+/**
+ * drizzle-kit's planner can still ask "add this unique constraint without
+ * truncating?" when its introspection misses a constraint that exists (seen on
+ * Neon / Postgres 17). Answer every such question with its default — which
+ * is always the non-destructive choice ("No, add the constraint without
+ * truncating the table") — instead of crashing for lack of a TTY. Anything
+ * destructive that results is still refused by the DATA_LOSS check below.
+ */
+async function planWithoutPrompts() {
+  const stdin = process.stdin as NodeJS.ReadStream & { setRawMode?: (b: boolean) => unknown };
+  const restore = [
+    Object.getOwnPropertyDescriptor(process.stdin, "isTTY"),
+    Object.getOwnPropertyDescriptor(process.stdout, "isTTY"),
+  ];
+  Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+  Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+  if (!stdin.setRawMode) stdin.setRawMode = () => stdin;
+  let answered = 0;
+  const answer = setInterval(() => {
+    if (process.stdin.listenerCount("keypress") > 0) {
+      answered++;
+      process.stdin.emit("keypress", "\r", { name: "return" });
+    }
+  }, 150);
+  try {
+    return await pushSchema(schema as Record<string, unknown>, db as never);
+  } finally {
+    clearInterval(answer);
+    if (answered) console.log(`[db-sync] answered ${answered} planner question(s) with the non-destructive default.`);
+    process.stdin.pause();
+    if (restore[0]) Object.defineProperty(process.stdin, "isTTY", restore[0]);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+    if (restore[1]) Object.defineProperty(process.stdout, "isTTY", restore[1]);
+    else delete (process.stdout as { isTTY?: boolean }).isTTY;
+  }
+}
+
 async function main(): Promise<void> {
-  await ensureUniqueConstraints();
-  const plan = await pushSchema(schema as Record<string, unknown>, db as never);
+  if (process.env.DB_SYNC_SKIP_PRECHECK !== "true") await ensureUniqueConstraints();
+  const plan = await planWithoutPrompts();
   const statements = plan.statementsToExecute;
   if (statements.length === 0) {
     console.log("[db-sync] Schema is up to date.");
