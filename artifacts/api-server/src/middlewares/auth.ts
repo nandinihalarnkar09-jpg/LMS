@@ -3,6 +3,7 @@ import { getAuth, clerkClient } from "@clerk/express";
 import { eq } from "drizzle-orm";
 import { db, usersTable, teacherInvitesTable, appInvitesTable, cohortMembersTable, type User } from "@workspace/db";
 import { logActivity } from "../lib/activityLog";
+import { DEV_AUTH_ENABLED, getDevUserId } from "./devAuth";
 
 // Emails that are automatically provisioned as teacher + admin. Configured via
 // the ADMIN_EMAILS env var (comma-separated). Empty by default — no hardcoded
@@ -54,8 +55,9 @@ export async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const auth = getAuth(req);
-  const userId = auth?.userId;
+  // Local dev auth (AUTH_MODE=dev) reads a cookie naming a seeded demo user;
+  // otherwise the Clerk session decides who this is.
+  const userId = DEV_AUTH_ENABLED ? getDevUserId(req) : getAuth(req)?.userId;
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -65,6 +67,12 @@ export async function requireAuth(
     .select()
     .from(usersTable)
     .where(eq(usersTable.id, userId));
+
+  if (!user && DEV_AUTH_ENABLED) {
+    // Demo accounts are created by the seed script, never provisioned here.
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
 
   if (!user) {
     // Fetch profile details from Clerk to seed the local row.

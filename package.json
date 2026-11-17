@@ -3,25 +3,26 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "preinstall": "node -e \"if(!/^pnpm\\//.test(process.env.npm_config_user_agent||'')){console.error('This repo uses pnpm. Run: corepack enable && pnpm install');process.exit(1)}\"",
+    "dev": "node scripts/dev.mjs",
+    "db:push": "pnpm --filter @workspace/db run push",
+    "db:seed": "pnpm --filter @workspace/scripts run seed",
+    "test": "pnpm --filter @workspace/api-server run test",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
-  "pnpm": {
-    "overrides": {
-      "react": "$react",
-      "react-dom": "$react-dom"
-    }
-  },
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.1",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
     "prettier": "^3.9.5",
     "typescript": "~5.9.3"
+  },
+  "packageManager": "pnpm@11.15.1",
+  "engines": {
+    "node": ">=22.12"
   }
 }

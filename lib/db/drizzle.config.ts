@@ -1,8 +1,18 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
 
+// Local dev keeps one shared .env at the repo root (README.md). Load it if it
+// exists; real environment variables (CI, hosting) always win.
+try {
+  process.loadEnvFile(path.resolve(__dirname, "../../.env"));
+} catch {
+  // No .env file — fine in CI and production.
+}
+
 if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
+  throw new Error(
+    "DATABASE_URL is not set. Copy .env.example to .env at the repo root and point it at your Postgres (see README.md).",
+  );
 }
 
 export default defineConfig({
