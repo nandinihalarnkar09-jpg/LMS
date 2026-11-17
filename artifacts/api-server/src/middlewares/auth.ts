@@ -106,6 +106,8 @@ export async function requireAuth(
     let acceptedInviteRole: string | null = null;
     let legacyTeacher = false;
     let inviteCohortIds: number[] = [];
+    let inviteRollNo: string | null = null;
+    let inviteName: string | null = null;
 
     if (admin) {
       role = "teacher";
@@ -121,6 +123,8 @@ export async function requireAuth(
         role = invite.role === "teacher" ? "teacher" : "student";
         acceptedInviteRole = role;
         inviteCohortIds = invite.cohortIds ?? [];
+        inviteRollNo = invite.rollNo ?? null;
+        inviteName = invite.name ?? null;
       } else if (await consumeTeacherInvite(email)) {
         role = "teacher";
         legacyTeacher = true;
@@ -136,9 +140,11 @@ export async function requireAuth(
       .values({
         id: userId,
         email,
-        name,
+        // The college's roster name wins over whatever the sign-in provider has.
+        name: inviteName ?? name,
         avatarUrl,
         role,
+        rollNo: inviteRollNo,
         isAdmin: admin,
       })
       .onConflictDoNothing()

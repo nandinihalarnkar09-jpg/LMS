@@ -107,6 +107,9 @@ app.use(
           : true,
   }),
 );
+// Roster CSVs for a whole college (up to 5,000 rows) exceed the general limit;
+// parse that one route with a larger cap first (body-parser skips re-parsing).
+app.use("/api/admin/roster/import", express.json({ limit: "4mb" }));
 app.use(express.json({ limit: "512kb" }));
 app.use(express.urlencoded({ extended: true, limit: "512kb" }));
 
