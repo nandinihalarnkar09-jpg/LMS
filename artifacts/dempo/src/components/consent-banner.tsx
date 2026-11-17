@@ -29,7 +29,7 @@ export function ConsentBanner() {
     <div className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-4">
       <div className="mx-auto max-w-3xl rounded-xl border bg-card shadow-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <p className="text-sm text-muted-foreground flex-1">
-          We use only essential cookies to sign you in, plus privacy-friendly, cookieless analytics.
+          We use only essential cookies to sign you in{import.meta.env.VITE_VERCEL_ANALYTICS === "true" ? ", plus privacy-friendly, cookieless analytics" : ""}.
           See our{" "}
           <Link href="/legal/cookies" className="text-info hover:underline">Cookie Notice</Link>{" "}and{" "}
           <Link href="/legal/privacy" className="text-info hover:underline">Privacy Policy</Link>.

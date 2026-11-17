@@ -72,7 +72,7 @@ What you get: every feature working on fictional data, a "Demo site" label on ev
 - **Indian academic gradebook:** no internal/external split, semester aggregation or SGPA/CGPA.
 - **Uploads and email are off until configured:** object storage (`STORAGE_*`) and MSG91 (`MSG91_*`). Without a bucket, every file picker says "share a link instead" (`GET /api/config`). WhatsApp/SMS flags have no code behind them.
 - **Not built, although `ARCHITECTURE.md` describes them:** Sentry error tracking, and name/roll-number redaction before AI grading. AI grading is **off** by default (`AI_GRADING_ENABLED=false`), and it should stay off until redaction exists.
-- **Database TLS** is encrypted but not certificate-verified in production (`lib/db/src/index.ts`). `MIGRATE-SUPABASE.md` says otherwise.
+- **Database TLS** is now encrypted *and* certificate-verified by default (`lib/db/src/index.ts`). Set `DATABASE_TLS_INSECURE=true` only for a pooler with a self-signed chain (Supabase Supavisor); that's what the original deployment needed.
 - **Leftovers:** Replit config files and Vite plugins, plus the unused `artifacts/mockup-sandbox`.
 - The full list of contradictions between documents is in [`docs/takeover/02-contradictions.md`](docs/takeover/02-contradictions.md).
 
