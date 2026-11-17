@@ -22,12 +22,28 @@ if (!url) {
   );
 }
 
+function withTlsMode(raw: string): string {
+  try {
+    const u = new URL(raw);
+    if (/^(localhost|127\.0\.0\.1)$/.test(u.hostname)) {
+      u.searchParams.delete("sslmode");
+    } else {
+      u.searchParams.set("sslmode", process.env.DATABASE_TLS_INSECURE === "true" ? "no-verify" : "verify-full");
+    }
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
 export default defineConfig({
   // Normalize to forward slashes: drizzle-kit's glob treats the "\" in Windows
   // paths as an escape char and fails to find the schema. No-op on Linux.
   schema: path.join(__dirname, "./src/schema/index.ts").replace(/\\/g, "/"),
   dialect: "postgresql",
   dbCredentials: {
-    url,
+    // Same TLS policy as the app (lib/db/src/index.ts): verified unless
+    // DATABASE_TLS_INSECURE=true; no TLS for localhost.
+    url: withTlsMode(url),
   },
 });

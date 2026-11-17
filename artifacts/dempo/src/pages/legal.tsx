@@ -186,8 +186,9 @@ export function CookiesPage() {
       <p>We use strictly necessary cookies to sign you in and maintain your session (set by our
         authentication provider). The app does not work without these, so they are always on.</p>
       <h2>Analytics</h2>
-      <p>We use privacy-friendly, aggregate analytics to understand usage. It is configured to be
-        cookieless and does not track you across other sites.</p>
+      <p>{import.meta.env.VITE_VERCEL_ANALYTICS === "true"
+        ? "We use privacy-friendly, aggregate analytics to understand usage. It is configured to be cookieless and does not track you across other sites."
+        : "This site does not use analytics or tracking."}</p>
       <h2>Managing cookies</h2>
       <p>You can clear or block cookies in your browser settings, but blocking essential cookies will
         prevent you from signing in. By continuing to use {APP} you consent to the essential cookies

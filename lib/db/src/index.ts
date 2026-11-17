@@ -13,17 +13,37 @@ if (!connectionString) {
   );
 }
 
+/**
+ * TLS for the database connection.
+ *
+ * - localhost: no TLS (local Postgres).
+ * - Otherwise: encrypted AND certificate-verified by default (Neon and most
+ *   managed Postgres present valid certificates).
+ * - DATABASE_TLS_INSECURE=true: encrypted but not verified — only for poolers
+ *   that present a self-signed chain (e.g. Supabase Supavisor).
+ *
+ * The sslmode query parameter is removed so this explicit setting is the only
+ * one in force (pg also warns about sslmode=require semantics changing).
+ */
+export function databaseConnectionOptions(url: string): { connectionString: string; ssl: undefined | { rejectUnauthorized: boolean } } {
+  const isLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+  let cleaned = url;
+  try {
+    const u = new URL(url);
+    u.searchParams.delete("sslmode");
+    cleaned = u.toString();
+  } catch {
+    // Not a URL we can parse; leave it untouched.
+  }
+  if (isLocal) return { connectionString: cleaned, ssl: undefined };
+  return {
+    connectionString: cleaned,
+    ssl: { rejectUnauthorized: process.env.DATABASE_TLS_INSECURE !== "true" },
+  };
+}
+
 export const pool = new Pool({
-  connectionString,
-  // In production keep TLS encryption on. We do NOT verify the CA
-  // (rejectUnauthorized: false) because managed poolers — notably Supabase's
-  // Supavisor — present a self-signed certificate in the chain, which strict
-  // verification rejects with SELF_SIGNED_CERT_IN_CHAIN. Traffic is still
-  // encrypted; local/CI Postgres (no TLS) leaves ssl off.
-  ssl:
-    process.env.NODE_ENV === "production" && !/@(localhost|127\.0\.0\.1)[:/]/.test(connectionString)
-      ? { rejectUnauthorized: false }
-      : undefined,
+  ...databaseConnectionOptions(connectionString),
 });
 export const db = drizzle(pool, { schema });
 
