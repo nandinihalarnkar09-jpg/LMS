@@ -12,6 +12,8 @@ import {
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
+import healthRouter from "./routes/health";
+import { DEV_AUTH_ENABLED, devAuthRouter } from "./middlewares/devAuth";
 import { logger } from "./lib/logger";
 import { logActivity } from "./lib/activityLog";
 
@@ -73,7 +75,14 @@ app.use(
   }),
 );
 
-app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+// Liveness probe first: it must answer even when auth/DB config is broken,
+// so uptime monitors and the Render health check report the server itself,
+// not a missing Clerk key (which used to turn /api/healthz into a 500).
+app.use("/api", healthRouter);
+
+if (!DEV_AUTH_ENABLED) {
+  app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+}
 
 // Restrict credentialed CORS to configured web origins (CORS_ALLOWED_ORIGINS
 // or APP_BASE_URL, comma-separated). If none are configured, allow any origin
@@ -101,14 +110,20 @@ app.use(
 app.use(express.json({ limit: "512kb" }));
 app.use(express.urlencoded({ extended: true, limit: "512kb" }));
 
-app.use(
-  clerkMiddleware((req) => ({
-    publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(req) ?? "",
-      process.env.CLERK_PUBLISHABLE_KEY,
-    ),
-  })),
-);
+if (DEV_AUTH_ENABLED) {
+  // Local development without Clerk: see middlewares/devAuth.ts.
+  logger.warn("AUTH_MODE=dev — signing in with seeded demo accounts, Clerk disabled");
+  app.use("/api", devAuthRouter());
+} else {
+  app.use(
+    clerkMiddleware((req) => ({
+      publishableKey: publishableKeyFromHost(
+        getClerkProxyHost(req) ?? "",
+        process.env.CLERK_PUBLISHABLE_KEY,
+      ),
+    })),
+  );
+}
 
 // Tighter limit on the expensive write paths, then the baseline limit on the
 // rest of the API.

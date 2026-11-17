@@ -3,7 +3,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Router as WouterRouter } from 'wouter';
 import { ThemeProvider } from 'next-themes';
-import { ClerkAuthProvider } from '@/lib/auth';
+import { AuthProvider } from '@/lib/auth';
 import { AppRouter } from '@/router';
 import { Analytics } from '@vercel/analytics/react';
 import { ConsentBanner } from '@/components/consent-banner';
@@ -26,7 +26,7 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <ClerkAuthProvider>
+        <AuthProvider>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <AppRouter />
@@ -35,7 +35,7 @@ function App() {
           <Analytics />
           <ConsentBanner />
         </TooltipProvider>
-        </ClerkAuthProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

@@ -17,6 +17,12 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
+    # Vercel runs Node 22; .node-version (local dev) says 24. Test both.
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+
     # Backend tests are integration tests against a real Postgres, so spin up a
     # throwaway one and point DATABASE_URL at it.
     services:
@@ -46,15 +52,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
 
+      # package.json "packageManager" pins pnpm; corepack reads it.
       - name: Enable pnpm via corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.15.1 --activate
+        run: corepack enable
 
+      # --frozen-lockfile: fail if pnpm-lock.yaml is out of date instead of
+      # silently re-resolving (which hid a pnpm 10 vs 11 lockfile drift).
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # Uses the repo's own orchestration: typecheck:libs runs `tsc --build`
       # over every composite lib (db, api-zod, api-client-react, etc.), then
