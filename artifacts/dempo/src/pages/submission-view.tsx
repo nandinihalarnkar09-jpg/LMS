@@ -133,12 +133,15 @@ export default function SubmissionViewPage({ id }: { id: string }) {
 
         {/* Right: Grading & AI */}
         <div className="space-y-6">
-          {/* AI Intelligence Panel */}
+          {/* AI draft + similarity: for the course teacher only. Students
+              never see the AI draft (the API withholds it too), so a draft
+              mark can't be mistaken for the final one. */}
+          {isTeacher && (
           <Card className="shadow-sm overflow-hidden">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-semibold text-muted-foreground">AI suggestion (your teacher decides the final mark)</span>
+                <span className="text-sm font-semibold text-muted-foreground">AI suggestion (you decide the final mark)</span>
               </div>
               <CardTitle className="text-lg font-semibold">Draft Assessment</CardTitle>
             </CardHeader>
@@ -146,13 +149,16 @@ export default function SubmissionViewPage({ id }: { id: string }) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-muted/30 p-4 rounded-lg border flex flex-col items-center text-center">
                   <span className="text-xs uppercase font-semibold text-muted-foreground mb-1 tracking-wider">Suggested</span>
-                  <div className="text-3xl font-bold text-foreground">{submission.aiScore || '-'}<span className="text-sm font-normal text-muted-foreground">/{submission.maxScore}</span></div>
+                  <div className="text-3xl font-bold text-foreground">{submission.aiScore ?? '—'}<span className="text-sm font-normal text-muted-foreground">/{submission.maxScore}</span></div>
                 </div>
                 <div className="bg-muted/30 p-4 rounded-lg border flex flex-col items-center text-center">
-                  <span className="text-xs uppercase font-semibold text-muted-foreground mb-1 tracking-wider">Originality</span>
-                  <div className={`text-3xl font-bold ${submission.plagiarismScore && submission.plagiarismScore > 30 ? 'text-danger' : 'text-success'}`}>
-                    {submission.plagiarismScore || 0}%
+                  {/* plagiarismScore is the highest similarity to another
+                      submission (0-100): low is good. */}
+                  <span className="text-xs uppercase font-semibold text-muted-foreground mb-1 tracking-wider">Similarity</span>
+                  <div className={`text-3xl font-bold ${submission.plagiarismScore == null ? 'text-muted-foreground' : submission.plagiarismScore > 30 ? 'text-danger' : 'text-success'}`}>
+                    {submission.plagiarismScore != null ? `${submission.plagiarismScore}%` : '—'}
                   </div>
+                  <span className="text-xs text-muted-foreground mt-1">closest match with another submission</span>
                 </div>
               </div>
               
@@ -161,11 +167,12 @@ export default function SubmissionViewPage({ id }: { id: string }) {
                   <FileText className="w-4 h-4 text-muted-foreground" /> Suggested Feedback
                 </h4>
                 <div className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-lg border">
-                  {submission.aiFeedback ? submission.aiFeedback : "AI analysis pending or unavailable."}
+                  {submission.aiFeedback ? submission.aiFeedback : "No AI suggestion: AI grading is switched off, or this submission has no text."}
                 </div>
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Similarity matches — teacher only */}
           {isTeacher && submission.similarityMatches && submission.similarityMatches.length > 0 && (
@@ -508,8 +515,11 @@ function ComparisonDialog({ submissionId, otherSubmissionId, leftName, rightName
 }
 
 function GradingPanel({ submission }: { submission: any }) {
-  const [score, setScore] = useState<number | string>(submission.score || submission.aiScore || "");
-  const [feedback, setFeedback] = useState(submission.feedback || submission.aiFeedback || "");
+  // Start from the teacher's own mark (0 is a real mark). The AI draft is
+  // applied only when the teacher presses "Use AI draft".
+  const [score, setScore] = useState<number | string>(submission.score ?? "");
+  const [feedback, setFeedback] = useState(submission.feedback ?? "");
+  const hasAiDraft = submission.aiScore != null || !!submission.aiFeedback;
   const [marks, setMarks] = useState<Record<string, number>>({});
   const [savingRubric, setSavingRubric] = useState(false);
 
@@ -589,7 +599,7 @@ function GradingPanel({ submission }: { submission: any }) {
   };
 
   const applyAIFeedback = () => {
-    if (submission.aiScore) setScore(submission.aiScore);
+    if (submission.aiScore != null) setScore(submission.aiScore);
     if (submission.aiFeedback) setFeedback(submission.aiFeedback);
   };
 
@@ -599,8 +609,16 @@ function GradingPanel({ submission }: { submission: any }) {
         <CardHeader className="pb-4 border-b bg-background/50 backdrop-blur">
           <div className="flex justify-between items-center">
             <CardTitle className="font-semibold">Official Evaluation</CardTitle>
-            <Button type="button" variant="outline" size="sm" onClick={applyAIFeedback} className="h-8 text-xs font-medium">
-              <Sparkles className="w-3 h-3 mr-1.5" /> Use AI Draft
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={applyAIFeedback}
+              disabled={!hasAiDraft}
+              title={hasAiDraft ? "Copy the AI suggestion into the form" : "No AI suggestion for this submission"}
+              className="h-8 text-xs font-medium"
+            >
+              <Sparkles className="w-3 h-3 mr-1.5" /> Use AI draft
             </Button>
           </div>
         </CardHeader>

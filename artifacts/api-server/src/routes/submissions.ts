@@ -31,7 +31,7 @@ import {
   SetSimilarityDismissalResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
-import { enrichSubmission } from "../lib/serializers";
+import { enrichSubmission, withoutAiDraft } from "../lib/serializers";
 import { gradeTextSubmission, computePlagiarismScore } from "../lib/grading";
 import {
   recomputeAssignmentSimilarities,
@@ -277,7 +277,12 @@ router.post(
 
     res
       .status(201)
-      .json(CreateSubmissionResponse.parse(await enrichSubmission(submission)));
+      // Only enrolled students reach this point, so the AI draft is withheld.
+      .json(
+        CreateSubmissionResponse.parse(
+          withoutAiDraft(await enrichSubmission(submission)),
+        ),
+      );
   },
 );
 
@@ -562,7 +567,9 @@ router.get(
     );
 
     const enriched = await Promise.all(
-      unique.map(({ submission }) => enrichSubmission(submission)),
+      unique.map(async ({ submission }) =>
+        withoutAiDraft(await enrichSubmission(submission)),
+      ),
     );
     res.json(ListMySubmissionsResponse.parse(enriched));
   },
@@ -703,7 +710,10 @@ router.get(
       return;
     }
 
-    res.json(GetSubmissionResponse.parse({ ...enriched, ...groupExtras }));
+    // Students and group members: no AI draft (see withoutAiDraft).
+    res.json(
+      GetSubmissionResponse.parse({ ...withoutAiDraft(enriched), ...groupExtras }),
+    );
   },
 );
 

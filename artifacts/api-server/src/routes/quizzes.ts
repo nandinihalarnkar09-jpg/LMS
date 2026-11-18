@@ -96,9 +96,18 @@ function sanitizeQuestions(
   return questions.map((q) => ({ ...q, correctOption: null }));
 }
 
-/** Strip scoring info from a student's own attempt until results are published. */
+/**
+ * Shape a student's own attempt. Scores stay hidden until results are
+ * published. AI suggestions are a draft for the teacher and never reach the
+ * student, before or after publishing: the final mark is the teacher's.
+ */
 function sanitizeAttempt(attempt: QuizAttempt, revealScores: boolean): QuizAttempt {
-  if (revealScores) return attempt;
+  if (revealScores) {
+    return {
+      ...attempt,
+      answers: attempt.answers.map((a) => ({ ...a, aiScore: null, aiFeedback: null })),
+    };
+  }
   return {
     ...attempt,
     score: null,
@@ -1020,10 +1029,14 @@ router.patch(
       overrides.set(s.questionId, Math.max(0, Math.min(max, s.score)));
     }
 
+    // Answers the teacher did not touch keep their current mark. A short
+    // answer nobody has marked stays unmarked (null) rather than becoming 0,
+    // so the teacher's screen can still show it as "to mark"; publishing
+    // results counts it as 0. The AI suggestion is never used here.
     const answers = attempt.answers.map((a) => {
       const override = overrides.get(a.questionId);
       const score =
-        override != null ? override : a.score ?? a.autoScore ?? 0;
+        override != null ? override : a.score ?? a.autoScore ?? null;
       return { ...a, score };
     });
     const total = answers.reduce((sum, a) => sum + (a.score ?? 0), 0);

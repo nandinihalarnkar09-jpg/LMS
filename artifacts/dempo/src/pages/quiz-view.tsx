@@ -112,6 +112,11 @@ function TeacherActions({ quiz }: { quiz: any }) {
   const publishQuiz = usePublishQuiz();
   const publishResults = usePublishQuizResults();
   const deleteQuiz = useDeleteQuiz();
+  const awaitingResults = quiz.status === "published" && !quiz.resultsPublishedAt;
+  const { data: attemptsForPublish } = useListQuizAttempts(quiz.id, {
+    query: { enabled: awaitingResults, queryKey: getListQuizAttemptsQueryKey(quiz.id) },
+  });
+  const toMark = (attemptsForPublish ?? []).reduce((n: number, a: any) => n + unmarkedCount(a), 0);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: getGetQuizQueryKey(quiz.id) });
@@ -144,7 +149,15 @@ function TeacherActions({ quiz }: { quiz: any }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Publish results to students?</AlertDialogTitle>
               <AlertDialogDescription>
-                Every attempt will be finalized (AI-suggested scores are accepted where you haven't adjusted them) and students will see their scores and the correct answers. This can't be undone.
+                {toMark > 0 && (
+                  <>
+                    <strong className="text-foreground">
+                      {toMark} short {toMark === 1 ? "answer has" : "answers have"} no mark from you yet and will count as 0.
+                    </strong>{" "}
+                    AI suggestions are never applied on their own: open the attempts below to accept or change them first.{" "}
+                  </>
+                )}
+                Every attempt will be finalized, and students will see their scores and the correct answers. This can't be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -223,9 +236,10 @@ function TeacherResults({ quiz }: { quiz: any }) {
     let counted = 0;
     for (const a of attemptList) {
       const ans = (a.answers ?? []).find((x: any) => x.questionId === q.id);
-      if (!ans) continue;
+      const mark = markOf(ans);
+      if (mark == null) continue; // not marked yet: left out of the average
       counted++;
-      earned += ans.score ?? ans.aiScore ?? ans.autoScore ?? 0;
+      earned += mark;
     }
     const pct = counted && q.points ? Math.round((earned / (counted * q.points)) * 100) : null;
     return { question: q, pct, counted };
@@ -281,11 +295,22 @@ function TeacherResults({ quiz }: { quiz: any }) {
   );
 }
 
+/**
+ * The mark that counts today: the teacher's, else the multiple-choice
+ * auto-score. Never the AI suggestion: publishing results finalizes exactly
+ * this (routes/quizzes.ts), because a student's answer can steer the model.
+ */
+function markOf(ans: any): number | null {
+  return ans?.score ?? ans?.autoScore ?? null;
+}
+
+/** Short answers nobody has marked yet. They count as 0 when results are published. */
+function unmarkedCount(attempt: any): number {
+  return (attempt.answers ?? []).filter((a: any) => markOf(a) == null).length;
+}
+
 function provisionalTotal(attempt: any): number {
-  return (attempt.answers ?? []).reduce(
-    (sum: number, a: any) => sum + (a.score ?? a.aiScore ?? a.autoScore ?? 0),
-    0,
-  );
+  return (attempt.answers ?? []).reduce((sum: number, a: any) => sum + (markOf(a) ?? 0), 0);
 }
 
 function AttemptRow({ attempt, quiz, questions }: { attempt: any; quiz: any; questions: any[] }) {
@@ -297,13 +322,26 @@ function AttemptRow({ attempt, quiz, questions }: { attempt: any; quiz: any; que
 
   const total = attempt.score ?? provisionalTotal(attempt);
   const qById = new Map(questions.map((q: any) => [q.id, q]));
+  const toMark = unmarkedCount(attempt);
+  // Unmarked short answers that have an AI suggestion the teacher can accept.
+  const suggestions = (attempt.answers ?? []).filter(
+    (a: any) => markOf(a) == null && a.aiScore != null,
+  );
+  const acceptSuggestion = (questionId: number, aiScore: number) =>
+    setEdits((prev) => ({ ...prev, [questionId]: String(aiScore) }));
+  const acceptAllSuggestions = () =>
+    setEdits((prev) => {
+      const next = { ...prev };
+      for (const a of suggestions) if (!(a.questionId in next)) next[a.questionId] = String(a.aiScore);
+      return next;
+    });
 
   const handleSave = () => {
     const scores = Object.entries(edits)
       .filter(([, v]) => v !== "" && !Number.isNaN(parseFloat(v)))
       .map(([qid, v]) => ({ questionId: parseInt(qid, 10), score: parseFloat(v) }));
     if (scores.length === 0) {
-      toast({ title: "Nothing to save", description: "Adjust at least one question score first." });
+      toast({ title: "Nothing to save", description: "Enter or accept at least one mark first." });
       return;
     }
     gradeAttempt.mutate({ attemptId: attempt.id, data: { scores } }, {
@@ -331,9 +369,15 @@ function AttemptRow({ attempt, quiz, questions }: { attempt: any; quiz: any; que
               {attempt.autoSubmitted ? " · auto-submitted when time ran out" : ""}
             </div>
           </div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${attempt.status === "graded" ? "bg-success/10 text-success border-success/20" : "bg-warning/12 text-warning border-warning/25"}`}>
-            {attempt.status === "graded" ? "Final" : "Provisional"}
-          </span>
+          {toMark > 0 ? (
+            <span className="px-2 py-1 rounded-full text-xs font-medium border bg-warning/12 text-warning border-warning/25">
+              {toMark} to mark
+            </span>
+          ) : (
+            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${attempt.status === "graded" ? "bg-success/10 text-success border-success/20" : "bg-warning/12 text-warning border-warning/25"}`}>
+              {attempt.status === "graded" ? "Final" : "Provisional"}
+            </span>
+          )}
           <span className="text-lg font-bold shrink-0">{total}/{attempt.maxScore}</span>
           {openDetail ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </button>
@@ -343,7 +387,8 @@ function AttemptRow({ attempt, quiz, questions }: { attempt: any; quiz: any; que
             {(attempt.answers ?? []).map((ans: any) => {
               const q = qById.get(ans.questionId);
               if (!q) return null;
-              const current = ans.score ?? ans.aiScore ?? ans.autoScore ?? 0;
+              const mark = markOf(ans);
+              const hasSuggestion = q.type !== "multiple_choice" && ans.aiScore != null;
               return (
                 <div key={ans.questionId} className="p-4 space-y-2">
                   <div className="font-medium text-sm">{q.prompt}</div>
@@ -362,34 +407,63 @@ function AttemptRow({ attempt, quiz, questions }: { attempt: any; quiz: any; que
                   ) : (
                     <div className="space-y-2 text-sm">
                       <div className="bg-muted/30 border rounded-lg p-3 whitespace-pre-wrap">{ans.textAnswer || "No answer"}</div>
-                      {ans.aiFeedback && (
+                      {(ans.aiScore != null || ans.aiFeedback) && (
                         <div className="flex items-start gap-2 text-muted-foreground">
                           <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
-                          <span>AI suggestion ({ans.aiScore ?? "—"}/{q.points}): {ans.aiFeedback}</span>
+                          <span>
+                            AI suggestion{ans.aiScore != null ? ` (${ans.aiScore}/${q.points})` : ""}{ans.aiFeedback ? `: ${ans.aiFeedback}` : ""}
+                            {" "}<span className="text-xs">(not applied until you accept it)</span>
+                          </span>
                         </div>
                       )}
                     </div>
                   )}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground">Score</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label htmlFor={`mark-${attempt.id}-${ans.questionId}`} className="text-xs text-muted-foreground">Score</Label>
                     <Input
+                      id={`mark-${attempt.id}-${ans.questionId}`}
                       type="number"
                       min={0}
                       max={q.points}
                       step="0.5"
                       className="w-24 h-8"
-                      value={edits[ans.questionId] ?? String(current)}
+                      placeholder="—"
+                      value={edits[ans.questionId] ?? (mark != null ? String(mark) : "")}
                       onChange={(e) => setEdits((prev) => ({ ...prev, [ans.questionId]: e.target.value }))}
                     />
                     <span className="text-sm text-muted-foreground">/ {q.points}</span>
+                    {mark == null && !edits[ans.questionId] && (
+                      <span className="text-xs font-medium text-warning">Not marked yet</span>
+                    )}
+                    {hasSuggestion && edits[ans.questionId] !== String(ans.aiScore) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => acceptSuggestion(ans.questionId, ans.aiScore)}
+                      >
+                        <Sparkles className="w-3 h-3 mr-1.5" /> Use suggestion ({ans.aiScore})
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
             })}
-            <div className="p-4 flex justify-end">
+            <div className="p-4 flex flex-wrap items-center justify-end gap-2">
+              {toMark > 0 && (
+                <p className="text-xs text-muted-foreground mr-auto max-w-md">
+                  Unmarked short answers count as 0 when you publish results. AI suggestions are used only when you accept them.
+                </p>
+              )}
+              {suggestions.length > 0 && (
+                <Button type="button" variant="outline" size="sm" onClick={acceptAllSuggestions}>
+                  <Sparkles className="w-4 h-4 mr-2" /> Use all suggestions ({suggestions.length})
+                </Button>
+              )}
               <Button size="sm" onClick={handleSave} disabled={gradeAttempt.isPending || Object.keys(edits).length === 0}>
                 {gradeAttempt.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Save Adjustments
+                Save marks
               </Button>
             </div>
           </div>
@@ -688,12 +762,6 @@ function StudentResults({ quiz }: { quiz: any }) {
                 ) : (
                   <div className="pl-10 space-y-2 text-sm">
                     <div className="bg-muted/30 border rounded-lg p-3 whitespace-pre-wrap">{ans?.textAnswer || "No answer"}</div>
-                    {ans?.aiFeedback && (
-                      <div className="flex items-start gap-2 text-muted-foreground">
-                        <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
-                        <span>{ans.aiFeedback}</span>
-                      </div>
-                    )}
                   </div>
                 )}
               </CardContent>
