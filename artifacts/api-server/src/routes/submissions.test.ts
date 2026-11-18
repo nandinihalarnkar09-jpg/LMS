@@ -36,6 +36,7 @@ vi.mock("../lib/grading", async (importOriginal) => {
 });
 
 const { default: submissionsRouter } = await import("./submissions");
+const { gradeTextSubmission } = await import("../lib/grading");
 
 const TEST_PREFIX = "task40test";
 const TEACHER_ID = `${TEST_PREFIX}_teacher`;
@@ -309,5 +310,59 @@ describe("AI declaration + similarity", () => {
       `/api/submissions/${aliceSubId}/comparison/${foreign!.id}`,
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe("AI draft visibility", () => {
+  let draftAssignmentId: number;
+  let draftSubId: number;
+
+  beforeAll(async () => {
+    const [assignment] = await db
+      .insert(assignmentsTable)
+      .values({ courseId, title: "Draft essay", allowedTypes: ["text"], maxScore: 100 })
+      .returning();
+    draftAssignmentId = assignment!.id;
+  });
+
+  it("stores the AI draft but never returns it to the student", async () => {
+    vi.mocked(gradeTextSubmission).mockResolvedValueOnce({
+      aiScore: 72,
+      aiFeedback: "Clear argument; cite one more source.",
+    });
+    asUser(ALICE);
+    const created = await request(app)
+      .post(`/api/assignments/${draftAssignmentId}/submissions`)
+      .send({ textResponse: DIFFERENT, aiDeclaration: "none" });
+    expect(created.status).toBe(201);
+    expect(created.body.aiScore).toBeNull();
+    expect(created.body.aiFeedback).toBeNull();
+    draftSubId = created.body.id;
+
+    const [stored] = await db
+      .select()
+      .from(submissionsTable)
+      .where(eq(submissionsTable.id, draftSubId));
+    expect(stored!.aiScore).toBe(72);
+
+    const one = await request(app).get(`/api/submissions/${draftSubId}`);
+    expect(one.status).toBe(200);
+    expect(one.body.aiScore).toBeNull();
+    expect(one.body.aiFeedback).toBeNull();
+
+    const mine = await request(app).get("/api/submissions/mine");
+    const listed = mine.body.find((s: any) => s.id === draftSubId);
+    expect(listed.aiScore).toBeNull();
+    expect(listed.aiFeedback).toBeNull();
+  });
+
+  it("the course teacher still sees the AI draft", async () => {
+    asUser(TEACHER_ID);
+    const one = await request(app).get(`/api/submissions/${draftSubId}`);
+    expect(one.body.aiScore).toBe(72);
+    expect(one.body.aiFeedback).toContain("Clear argument");
+
+    const list = await request(app).get(`/api/assignments/${draftAssignmentId}/submissions`);
+    expect(list.body.find((s: any) => s.id === draftSubId).aiScore).toBe(72);
   });
 });

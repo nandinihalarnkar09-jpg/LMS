@@ -312,6 +312,20 @@ describe("quiz lifecycle, visibility and scoring", () => {
     expect(res.body.status).toBe("graded");
   });
 
+  it("saving one mark leaves other short answers unmarked, never filled from the AI", async () => {
+    asUser(TEACHER_ID);
+    const attempts = await request(app).get(`/api/quizzes/${quizId}/attempts`);
+    const bob = attempts.body.find((a: any) => a.studentId === BOB);
+    const res = await request(app)
+      .patch(`/api/quiz-attempts/${bob.id}/grade`)
+      .send({ scores: [{ questionId: mcQuestionId, score: 0 }] });
+    expect(res.status).toBe(200);
+    const sa = res.body.answers.find((a: any) => a.questionId === saQuestionId);
+    expect(sa.aiScore).toBe(3); // the suggestion is still there for the teacher...
+    expect(sa.score).toBeNull(); // ...but nobody has marked it, so it is not 0 yet
+    expect(res.body.score).toBe(0);
+  });
+
   it("students cannot grade attempts", async () => {
     const attemptsRows = await db
       .select()
@@ -369,5 +383,22 @@ describe("quiz lifecycle, visibility and scoring", () => {
     const bob = attempts.body.find((a: any) => a.studentId === BOB);
     expect(bob.score).toBe(0);
     expect(bob.status).toBe("graded");
+  });
+
+  it("never sends AI suggestions to students, even after results are published", async () => {
+    asUser(ALICE);
+    const res = await request(app).get(`/api/quizzes/${quizId}`);
+    expect(res.body.resultsPublishedAt).toBeTruthy();
+    const sa = res.body.myAttempt.answers.find((a: any) => a.questionId === saQuestionId);
+    expect(sa.score).toBe(5); // the teacher's mark is what the student sees
+    expect(sa.aiScore).toBeNull();
+    expect(sa.aiFeedback).toBeNull();
+
+    // The teacher still sees the suggestion beside the mark.
+    asUser(TEACHER_ID);
+    const attempts = await request(app).get(`/api/quizzes/${quizId}/attempts`);
+    const alice = attempts.body.find((a: any) => a.studentId === ALICE);
+    const teacherView = alice.answers.find((a: any) => a.questionId === saQuestionId);
+    expect(teacherView.aiScore).toBe(3);
   });
 });

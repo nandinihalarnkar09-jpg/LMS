@@ -11,7 +11,7 @@ import {
 } from "@workspace/db";
 import { GetDashboardResponse } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
-import { enrichSubmission } from "../lib/serializers";
+import { enrichSubmission, withoutAiDraft } from "../lib/serializers";
 import {
   filterAssignmentsForStudent,
   getActiveEnrolledCourseIds,
@@ -186,9 +186,10 @@ router.get("/dashboard", requireAuth, async (req, res): Promise<void> => {
       pendingGradingCount: 0,
       totalUnread,
       upcomingAssignments,
-      recentSubmissions: await Promise.all(
-        recentSubmissions.map(enrichSubmission),
-      ),
+      // Students never receive the AI draft (see withoutAiDraft).
+      recentSubmissions: (
+        await Promise.all(recentSubmissions.map(enrichSubmission))
+      ).map(withoutAiDraft),
     }),
   );
 });

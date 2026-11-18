@@ -267,7 +267,7 @@ function TeacherSubmissionsView({ assignmentId }: { assignmentId: number }) {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    {sub.aiScore ? (
+                    {sub.aiScore != null ? (
                       <span className="text-muted-foreground font-mono bg-muted px-2 py-1 rounded">{sub.aiScore}/{sub.maxScore}</span>
                     ) : '-'}
                   </td>

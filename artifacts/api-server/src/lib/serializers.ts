@@ -31,6 +31,18 @@ export async function enrichCourse(course: Course) {
   };
 }
 
+/**
+ * The AI score and feedback are a draft for the teacher. Students never
+ * receive them: a draft mark that differs from the final one reads as a
+ * promise. Use on every student-facing response that carries a submission.
+ * (The DPDP data export is the exception: it returns the student's own data.)
+ */
+export function withoutAiDraft<T extends { aiScore: number | null; aiFeedback: string | null }>(
+  submission: T,
+): T {
+  return { ...submission, aiScore: null, aiFeedback: null };
+}
+
 export async function enrichSubmission(submission: Submission) {
   const [[student], [assignment], [group]] = await Promise.all([
     db.select().from(usersTable).where(eq(usersTable.id, submission.studentId)),

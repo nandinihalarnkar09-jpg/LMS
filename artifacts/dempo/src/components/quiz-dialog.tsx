@@ -326,7 +326,7 @@ export function QuizFormDialog({
                 )}
                 {q.type === "short_answer" && (
                   <p className="text-xs text-muted-foreground">
-                    Students type a free-form answer. AI suggests a score you can adjust before publishing results.
+                    Students type a free-form answer, and you mark it before publishing results. If AI grading is switched on, you'll also see a suggested mark that you can accept or change.
                   </p>
                 )}
               </div>
